@@ -1,4 +1,5 @@
 const wait = (ms = 220) => new Promise((resolve) => setTimeout(resolve, ms));
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 const employees = [
   {
@@ -131,52 +132,151 @@ const gateStatus = {
   activeLed: "Galben",
 };
 
+async function request(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const error = new Error(`API request failed: ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+function createLogFromValidation({ employee, authorized, direction = "IN", method = "Portar" }) {
+  const log = {
+    id: Date.now(),
+    employeeId: employee?.id || null,
+    employeeName: employee?.name || "Necunoscut",
+    department: employee?.department || "N/A",
+    timestamp: new Date().toISOString(),
+    direction,
+    status: authorized ? "Valid" : "Refuzat",
+    method,
+    carPlate: employee?.carPlate || "-",
+    note: authorized ? "Acces permis prin fallback mock" : "Cod invalid sau angajat inactiv",
+  };
+  accessLogs.unshift(log);
+  return log;
+}
+
 export async function getEmployees() {
-  await wait();
-  return [...employees];
+  try {
+    return await request("/employees");
+  } catch (error) {
+    await wait();
+    return [...employees];
+  }
 }
 
 export async function saveEmployee(employee) {
-  await wait();
-  if (employee.id) {
-    return { ...employee };
+  try {
+    if (employee.id) {
+      return await request(`/employees/${employee.id}`, {
+        method: "PUT",
+        body: JSON.stringify(employee),
+      });
+    }
+
+    return await request("/employees", {
+      method: "POST",
+      body: JSON.stringify(employee),
+    });
+  } catch (error) {
+    await wait();
+    if (employee.id) {
+      return { ...employee };
+    }
+    return { ...employee, id: Date.now(), status: "Activ" };
   }
-  return { ...employee, id: Date.now(), status: "Activ" };
 }
 
 export async function getAccessLogs() {
-  await wait();
-  return [...accessLogs].sort(
-    (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
-  );
+  try {
+    return await request("/access-logs");
+  } catch (error) {
+    await wait();
+    return [...accessLogs].sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+    );
+  }
 }
 
 export async function getGateStatus() {
-  await wait(120);
-  return { ...gateStatus };
+  try {
+    return await request("/gate/status");
+  } catch (error) {
+    await wait(120);
+    return { ...gateStatus };
+  }
 }
 
 export async function getReports() {
-  await wait();
-  return {
-    totals: {
-      employees: employees.length,
-      present: 2,
-      denied: 1,
-      manual: 1,
-    },
-    byDepartment: [
-      { department: "IT", entries: 2, denied: 0 },
-      { department: "Operatiuni", entries: 2, denied: 0 },
-      { department: "Financiar", entries: 1, denied: 1 },
-      { department: "Mentenanta", entries: 0, denied: 0 },
-    ],
-    monthly: [
-      { label: "Ian", value: 84 },
-      { label: "Feb", value: 91 },
-      { label: "Mar", value: 88 },
-      { label: "Apr", value: 96 },
-      { label: "Mai", value: 72 },
-    ],
-  };
+  try {
+    return await request("/reports/attendance");
+  } catch (error) {
+    await wait();
+    return {
+      totals: {
+        employees: employees.length,
+        present: 2,
+        denied: 1,
+        manual: 1,
+      },
+      byDepartment: [
+        { department: "IT", entries: 2, denied: 0 },
+        { department: "Operatiuni", entries: 2, denied: 0 },
+        { department: "Financiar", entries: 1, denied: 1 },
+        { department: "Mentenanta", entries: 0, denied: 0 },
+      ],
+      monthly: [
+        { label: "Ian", value: 84 },
+        { label: "Feb", value: 91 },
+        { label: "Mar", value: 88 },
+        { label: "Apr", value: 96 },
+        { label: "Mai", value: 72 },
+      ],
+    };
+  }
+}
+
+export async function validateAccess({
+  accessCode = "1234",
+  direction = "IN",
+  method = "Portar",
+} = {}) {
+  try {
+    return await request("/validate-access", {
+      method: "POST",
+      body: JSON.stringify({ accessCode, direction, method }),
+    });
+  } catch (error) {
+    const employee = employees.find(
+      (item) => item.accessCode === accessCode && item.status === "Activ",
+    );
+    const authorized = Boolean(employee);
+    const log = createLogFromValidation({ employee, authorized, direction, method });
+
+    return {
+      authorized,
+      name: employee?.name,
+      action: authorized ? "OPEN_GATE" : "DENY_ACCESS",
+      employee,
+      log,
+      gateStatus: {
+        ...gateStatus,
+        state: authorized ? "Deschisa" : "Inchisa",
+        activeLed: authorized ? "Verde" : "Rosu",
+        lastSync: new Date().toISOString(),
+      },
+      message: authorized ? "Acces permis" : "Cod invalid sau expirat",
+    };
+  }
 }

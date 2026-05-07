@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import AccessLogTable from "../components/AccessLogTable.jsx";
 import GateStatusCard from "../components/GateStatusCard.jsx";
-import { getAccessLogs, getEmployees, getGateStatus } from "../services/api.js";
+import {
+  getAccessLogs,
+  getEmployees,
+  getGateStatus,
+  validateAccess,
+} from "../services/api.js";
 
 function CurrentTime() {
   const [now, setNow] = useState(new Date());
@@ -29,12 +34,37 @@ export default function Dashboard() {
   const [gateStatus, setGateStatus] = useState(null);
   const [logs, setLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [accessMessage, setAccessMessage] = useState("");
 
-  useEffect(() => {
+  const refreshDashboard = () => {
     getGateStatus().then(setGateStatus);
     getAccessLogs().then(setLogs);
     getEmployees().then(setEmployees);
+  };
+
+  useEffect(() => {
+    refreshDashboard();
   }, []);
+
+  const handleValidateAccess = async (accessCode) => {
+    const result = await validateAccess({
+      accessCode,
+      direction: "IN",
+      method: "Portar",
+    });
+
+    setAccessMessage(result.message || (result.authorized ? "Acces permis" : "Acces refuzat"));
+
+    if (result.gateStatus) {
+      setGateStatus(result.gateStatus);
+    }
+
+    if (result.log) {
+      setLogs((currentLogs) => [result.log, ...currentLogs]);
+    } else {
+      getAccessLogs().then(setLogs);
+    }
+  };
 
   const latestLog = logs[0];
   const activeEmployee = useMemo(
@@ -78,13 +108,22 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="action-row">
-            <button className="primary-button" type="button">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => handleValidateAccess("1234")}
+            >
               Permite acces
             </button>
-            <button className="danger-button" type="button">
+            <button
+              className="danger-button"
+              type="button"
+              onClick={() => handleValidateAccess("INVALID")}
+            >
               Interzice manual
             </button>
           </div>
+          {accessMessage && <p className="inline-feedback">{accessMessage}</p>}
         </section>
       </div>
 
