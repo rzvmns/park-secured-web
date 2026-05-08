@@ -95,16 +95,17 @@ export default function Dashboard() {
               <p className="eyebrow">Ultimul acces</p>
               <h2>{latestLog?.employeeName || "Fara evenimente"}</h2>
             </div>
-            <span className={`badge ${latestLog?.status === "Valid" ? "success" : "danger"}`}>
-              {latestLog?.status}
+            <span className={`badge ${latestLog?.status === "Valid" ? "success" : latestLog?.status === "Refuzat" ? "danger" : "info"}`}>
+              {latestLog?.status || "Așteptare..."}
             </span>
+        
           </div>
           <div className="profile-row">
             <span className="avatar xl">{latestLog?.employeeName?.slice(0, 1) || "?"}</span>
             <div>
-              <strong>{activeEmployee?.role || "Rol necunoscut"}</strong>
-              <span>{activeEmployee?.department || latestLog?.department}</span>
-              <span>{latestLog?.carPlate}</span>
+              <span className="avatar xl">
+                {latestLog?.employeeName ? latestLog.employeeName.slice(0, 1) : "?"}
+              </span>
             </div>
           </div>
           <div className="action-row">
