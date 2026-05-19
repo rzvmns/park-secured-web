@@ -3,19 +3,26 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
-  const { isAuthenticated, login } = useAuth();
+  const { authError, isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@parksecured.ro");
-  const [password, setPassword] = useState("parksecured");
+  const [email, setEmail] = useState("admin@parksecure.local");
+  const [password, setPassword] = useState("admin123");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    login({ email, password });
-    navigate("/dashboard");
+    setIsSubmitting(true);
+
+    try {
+      await login({ email, password });
+      navigate("/dashboard");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -52,8 +59,9 @@ export default function Login() {
             />
           </label>
           <button className="primary-button" type="submit">
-            Intra in aplicatie
+            {isSubmitting ? "Se conecteaza..." : "Intra in aplicatie"}
           </button>
+          {authError && <p className="inline-feedback danger-text">{authError}</p>}
         </form>
       </section>
       <section className="login-aside">

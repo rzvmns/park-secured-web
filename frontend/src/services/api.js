@@ -1,159 +1,226 @@
-const wait = (ms = 220) => new Promise((resolve) => setTimeout(resolve, ms));
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud.onrender.com/api";
+const TOKEN_KEY = "parksecured_token";
+const USER_KEY = "parksecured_user";
 
-const employees = [
+const wait = (ms = 180) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fallbackEmployees = [
   {
     id: 1,
+    employeeId: 1,
     name: "Mara Ionescu",
-    role: "Inginer software",
+    firstName: "Mara",
+    lastName: "Ionescu",
+    cnp: "1990101123456",
+    role: "Angajat",
     department: "IT",
-    photoUrl: "",
+    divisionId: 1,
     accessCode: "PKS-83D1-7A20",
     schedule: "08:00 - 18:00",
-    phone: "Asociat",
+    phone: "Neasociat",
     carPlate: "B 104 MRA",
     autoAccess: true,
     status: "Activ",
     grantedBy: "Admin Securitate",
   },
-  {
-    id: 2,
-    name: "Victor Stan",
-    role: "Manager departament",
-    department: "Operatiuni",
-    photoUrl: "",
-    accessCode: "PKS-19B7-45FC",
-    schedule: "07:00 - 17:00",
-    phone: "Asociat",
-    carPlate: "CJ 21 VST",
-    autoAccess: true,
-    status: "Activ",
-    grantedBy: "Admin Securitate",
-  },
-  {
-    id: 3,
-    name: "Elena Radu",
-    role: "Analist financiar",
-    department: "Financiar",
-    photoUrl: "",
-    accessCode: "PKS-55AC-910E",
-    schedule: "09:00 - 17:00",
-    phone: "Neasociat",
-    carPlate: "-",
-    autoAccess: false,
-    status: "Activ",
-    grantedBy: "Manager Financiar",
-  },
-  {
-    id: 4,
-    name: "Rares Matei",
-    role: "Tehnician",
-    department: "Mentenanta",
-    photoUrl: "",
-    accessCode: "PKS-31EA-6D89",
-    schedule: "06:00 - 14:00",
-    phone: "Asociat",
-    carPlate: "B 88 RMT",
-    autoAccess: true,
-    status: "Inactiv",
-    grantedBy: "Admin Securitate",
-  },
 ];
 
-const accessLogs = [
+let fallbackAccessLogs = [
   {
     id: 101,
     employeeId: 1,
     employeeName: "Mara Ionescu",
     department: "IT",
-    timestamp: "2026-05-07T08:12:00",
+    timestamp: new Date().toISOString(),
     direction: "IN",
     status: "Valid",
     method: "ESP32",
     carPlate: "B 104 MRA",
-    note: "Acces in interval permis",
-  },
-  {
-    id: 102,
-    employeeId: 2,
-    employeeName: "Victor Stan",
-    department: "Operatiuni",
-    timestamp: "2026-05-07T08:18:00",
-    direction: "IN",
-    status: "Valid",
-    method: "ESP32",
-    carPlate: "CJ 21 VST",
-    note: "Poarta deschisa automat",
-  },
-  {
-    id: 103,
-    employeeId: 3,
-    employeeName: "Elena Radu",
-    department: "Financiar",
-    timestamp: "2026-05-07T07:41:00",
-    direction: "IN",
-    status: "Refuzat",
-    method: "Bluetooth",
-    carPlate: "-",
-    note: "In afara intervalului permis",
-  },
-  {
-    id: 104,
-    employeeId: 1,
-    employeeName: "Mara Ionescu",
-    department: "IT",
-    timestamp: "2026-05-07T12:06:00",
-    direction: "OUT",
-    status: "Valid",
-    method: "ESP32",
-    carPlate: "B 104 MRA",
-    note: "Iesire pauza",
-  },
-  {
-    id: 105,
-    employeeId: 2,
-    employeeName: "Victor Stan",
-    department: "Operatiuni",
-    timestamp: "2026-05-07T12:25:00",
-    direction: "OUT",
-    status: "Manual",
-    method: "Portar",
-    carPlate: "CJ 21 VST",
-    note: "Validare manuala portar",
+    note: "Acces demonstrativ local",
   },
 ];
 
-const gateStatus = {
+const fallbackGateStatus = {
   state: "Inchisa",
   barrier: "Libera",
   esp32: "Conectat",
-  cloud: "Sincronizat",
-  lastSync: "2026-05-07T12:30:00",
+  cloud: "Offline",
+  lastSync: new Date().toISOString(),
   activeLed: "Galben",
 };
 
+export function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function getStoredUser() {
+  const storedUser = localStorage.getItem(USER_KEY);
+
+  if (!storedUser) return null;
+
+  try {
+    return JSON.parse(storedUser);
+  } catch {
+    return null;
+  }
+}
+
+export function setSession({ token, user }) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    ...options,
-  });
+  const token = getStoredToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    throw new Error(
+      `Nu se poate contacta API-ul cloud (${API_BASE_URL}). Verifica VITE_API_BASE_URL si conexiunea.`,
+    );
+  }
+
+  const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const error = new Error(`API request failed: ${response.status}`);
+    const error = new Error(payload?.message || `API request failed: ${response.status}`);
     error.status = response.status;
+    error.payload = payload;
     throw error;
   }
 
-  return response.json();
+  return payload?.data ?? payload;
 }
 
-function createLogFromValidation({ employee, authorized, direction = "IN", method = "Portar" }) {
+function splitName(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() || "Angajat";
+  const lastName = parts.join(" ") || "ParkSecured";
+
+  return { firstName, lastName };
+}
+
+function normalizeTime(value) {
+  if (!value) return "";
+  return String(value).slice(0, 5);
+}
+
+function buildSchedule(start, end) {
+  if (!start && !end) return "Nespecificat";
+  return `${normalizeTime(start) || "--:--"} - ${normalizeTime(end) || "--:--"}`;
+}
+
+function parseSchedule(schedule = "") {
+  const [start, end] = schedule.split("-").map((item) => item?.trim());
+
+  return {
+    accessStartTime: start || null,
+    accessEndTime: end || null,
+  };
+}
+
+function generatedCnp(employee) {
+  return employee.cnp || `TMP${employee.id || Date.now()}`;
+}
+
+function mapCloudUser(user) {
+  return {
+    id: user.userId,
+    email: user.email,
+    name: user.email?.split("@")[0] || "Utilizator ParkSecured",
+    role: user.role,
+    department: user.divisionId ? `Divizia ${user.divisionId}` : "Global",
+  };
+}
+
+function mapCloudEmployee(employee) {
+  const name = `${employee.firstName || ""} ${employee.lastName || ""}`.trim();
+  const hasCar = Boolean(employee.carNumber);
+
+  return {
+    id: employee.employeeId,
+    employeeId: employee.employeeId,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    name: name || `Angajat #${employee.employeeId}`,
+    cnp: employee.cnp,
+    role: employee.badgeCode || "Angajat",
+    department: employee.divisionName || `Divizia ${employee.divisionId}`,
+    divisionId: employee.divisionId,
+    photoUrl: employee.photoUrl || "",
+    accessCode: employee.bluetoothCode || employee.badgeCode || "",
+    badgeCode: employee.badgeCode || "",
+    bluetoothCode: employee.bluetoothCode || "",
+    schedule: buildSchedule(employee.accessStartTime, employee.accessEndTime),
+    phone: "Neasociat",
+    carPlate: employee.carNumber || "-",
+    autoAccess: hasCar,
+    status: employee.isActive ? "Activ" : "Inactiv",
+    isActive: employee.isActive,
+    grantedBy: employee.grantedByUserId ? `Utilizator ${employee.grantedByUserId}` : "Cloud",
+  };
+}
+
+function toCloudEmployeePayload(employee) {
+  const { firstName, lastName } = splitName(employee.name);
+  const schedule = parseSchedule(employee.schedule);
+
+  return {
+    firstName: employee.firstName || firstName,
+    lastName: employee.lastName || lastName,
+    cnp: generatedCnp(employee),
+    photoUrl: employee.photoUrl || null,
+    badgeCode: employee.badgeCode || employee.accessCode || null,
+    divisionId: Number(employee.divisionId || 1),
+    bluetoothCode: employee.bluetoothCode || employee.accessCode || null,
+    carNumber: employee.autoAccess ? employee.carPlate || null : null,
+    accessStartTime: schedule.accessStartTime,
+    accessEndTime: schedule.accessEndTime,
+    isActive: employee.status ? employee.status === "Activ" : employee.isActive !== false,
+  };
+}
+
+function mapCloudEvent(event, employees = []) {
+  const employee = employees.find((item) => item.employeeId === event.employeeId);
+
+  return {
+    id: event.eventId,
+    employeeId: event.employeeId,
+    employeeName: employee?.name || `Angajat #${event.employeeId}`,
+    department: employee?.department || "N/A",
+    timestamp: event.eventTime,
+    direction: event.eventType === "EXIT" ? "OUT" : "IN",
+    status: event.eventStatus === "DENIED" ? "Refuzat" : "Valid",
+    method: event.source || "Cloud",
+    carPlate: employee?.carPlate || "-",
+    note: event.notes || event.gateCode || "-",
+  };
+}
+
+function eventTypeFromDirection(direction) {
+  return direction === "OUT" ? "EXIT" : "ENTRY";
+}
+
+function createLocalLog({ employee, authorized, direction = "IN", method = "Portar", note }) {
   const log = {
     id: Date.now(),
-    employeeId: employee?.id || null,
+    employeeId: employee?.employeeId || employee?.id || null,
     employeeName: employee?.name || "Necunoscut",
     department: employee?.department || "N/A",
     timestamp: new Date().toISOString(),
@@ -161,49 +228,71 @@ function createLogFromValidation({ employee, authorized, direction = "IN", metho
     status: authorized ? "Valid" : "Refuzat",
     method,
     carPlate: employee?.carPlate || "-",
-    note: authorized ? "Acces permis prin fallback mock" : "Cod invalid sau angajat inactiv",
+    note: note || (authorized ? "Acces permis" : "Cod invalid sau angajat inactiv"),
   };
-  accessLogs.unshift(log);
+
+  fallbackAccessLogs = [log, ...fallbackAccessLogs];
   return log;
+}
+
+export async function loginRequest({ email, password }) {
+  const result = await request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+
+  const session = {
+    token: result.token,
+    user: mapCloudUser(result.user),
+  };
+
+  setSession(session);
+  return session;
 }
 
 export async function getEmployees() {
   try {
-    return await request("/employees");
+    const employees = await request("/employees");
+    return employees.map(mapCloudEmployee);
   } catch (error) {
     await wait();
-    return [...employees];
+    return [...fallbackEmployees];
   }
 }
 
 export async function saveEmployee(employee) {
   try {
-    if (employee.id) {
-      return await request(`/employees/${employee.id}`, {
-        method: "PUT",
-        body: JSON.stringify(employee),
-      });
-    }
+    const payload = toCloudEmployeePayload(employee);
+    const saved = employee.employeeId || employee.id
+      ? await request(`/employees/${employee.employeeId || employee.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        })
+      : await request("/employees", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
 
-    return await request("/employees", {
-      method: "POST",
-      body: JSON.stringify(employee),
-    });
+    return mapCloudEmployee(saved);
   } catch (error) {
     await wait();
-    if (employee.id) {
-      return { ...employee };
-    }
-    return { ...employee, id: Date.now(), status: "Activ" };
+    return employee.id
+      ? { ...employee }
+      : { ...employee, id: Date.now(), employeeId: Date.now(), status: "Activ" };
   }
 }
 
 export async function getAccessLogs() {
   try {
-    return await request("/access-logs");
+    const [employees, events] = await Promise.all([
+      getEmployees(),
+      request("/access-events"),
+    ]);
+
+    return events.map((event) => mapCloudEvent(event, employees));
   } catch (error) {
     await wait();
-    return [...accessLogs].sort(
+    return [...fallbackAccessLogs].sort(
       (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
     );
   }
@@ -211,58 +300,110 @@ export async function getAccessLogs() {
 
 export async function getGateStatus() {
   try {
-    return await request("/gate/status");
+    await request("/health");
+
+    return {
+      ...fallbackGateStatus,
+      cloud: "Sincronizat",
+      lastSync: new Date().toISOString(),
+    };
   } catch (error) {
     await wait(120);
-    return { ...gateStatus };
+    return { ...fallbackGateStatus, cloud: "Offline" };
   }
 }
 
 export async function getReports() {
   try {
-    return await request("/reports/attendance");
+    const [employees, globalReport, divisions] = await Promise.all([
+      getEmployees(),
+      request("/reports/global"),
+      request("/divisions").catch(() => []),
+    ]);
+
+    const divisionReports = await Promise.all(
+      divisions.map((division) =>
+        request(`/reports/division/${division.divisionId}`).catch(() => null),
+      ),
+    );
+
+    return {
+      totals: {
+        employees: globalReport.total_employees ?? employees.length,
+        present: globalReport.allowed_events ?? 0,
+        denied: globalReport.denied_events ?? 0,
+        manual: 0,
+      },
+      byDepartment: divisionReports
+        .filter(Boolean)
+        .map((item) => ({
+          department: item.division_name,
+          entries: item.allowed_events,
+          denied: item.denied_events,
+        })),
+      monthly: [
+        { label: "Ian", value: 0 },
+        { label: "Feb", value: 0 },
+        { label: "Mar", value: 0 },
+        { label: "Apr", value: 0 },
+        { label: "Mai", value: globalReport.total_events ?? 0 },
+      ],
+    };
   } catch (error) {
     await wait();
     return {
       totals: {
-        employees: employees.length,
-        present: 2,
-        denied: 1,
-        manual: 1,
+        employees: fallbackEmployees.length,
+        present: fallbackAccessLogs.filter((log) => log.status === "Valid").length,
+        denied: fallbackAccessLogs.filter((log) => log.status === "Refuzat").length,
+        manual: fallbackAccessLogs.filter((log) => log.method === "Portar").length,
       },
-      byDepartment: [
-        { department: "IT", entries: 2, denied: 0 },
-        { department: "Operatiuni", entries: 2, denied: 0 },
-        { department: "Financiar", entries: 1, denied: 1 },
-        { department: "Mentenanta", entries: 0, denied: 0 },
-      ],
-      monthly: [
-        { label: "Ian", value: 84 },
-        { label: "Feb", value: 91 },
-        { label: "Mar", value: 88 },
-        { label: "Apr", value: 96 },
-        { label: "Mai", value: 72 },
-      ],
+      byDepartment: [{ department: "Local", entries: fallbackAccessLogs.length, denied: 0 }],
+      monthly: [{ label: "Mai", value: fallbackAccessLogs.length }],
     };
   }
 }
 
 export async function validateAccess({
-  accessCode = "1234",
+  accessCode = "",
   direction = "IN",
   method = "Portar",
 } = {}) {
+  const employees = await getEmployees();
+  const employee = employees.find(
+    (item) =>
+      item.status === "Activ" &&
+      [item.accessCode, item.bluetoothCode, item.badgeCode]
+        .filter(Boolean)
+        .includes(accessCode),
+  );
+  const authorized = Boolean(employee);
+
   try {
-    return await request("/validate-access", {
-      method: "POST",
-      body: JSON.stringify({ accessCode, direction, method }),
-    });
-  } catch (error) {
-    const employee = employees.find(
-      (item) => item.accessCode === accessCode && item.status === "Activ",
-    );
-    const authorized = Boolean(employee);
-    const log = createLogFromValidation({ employee, authorized, direction, method });
+    let savedEvent = null;
+
+    if (employee) {
+      savedEvent = await request("/access-events", {
+        method: "POST",
+        body: JSON.stringify({
+          employeeId: employee.employeeId,
+          eventType: eventTypeFromDirection(direction),
+          eventStatus: "ALLOWED",
+          source: method,
+          notes: "Validare initiata din aplicatia web",
+        }),
+      });
+    }
+
+    const log = savedEvent
+      ? mapCloudEvent(savedEvent, employees)
+      : createLocalLog({
+          employee,
+          authorized: false,
+          direction,
+          method,
+          note: "Cod invalid sau angajat inactiv",
+        });
 
     return {
       authorized,
@@ -271,12 +412,30 @@ export async function validateAccess({
       employee,
       log,
       gateStatus: {
-        ...gateStatus,
+        ...fallbackGateStatus,
+        state: authorized ? "Deschisa" : "Inchisa",
+        activeLed: authorized ? "Verde" : "Rosu",
+        cloud: "Sincronizat",
+        lastSync: new Date().toISOString(),
+      },
+      message: authorized ? "Acces permis" : "Cod invalid sau angajat inactiv",
+    };
+  } catch (error) {
+    const log = createLocalLog({ employee, authorized, direction, method });
+
+    return {
+      authorized,
+      name: employee?.name,
+      action: authorized ? "OPEN_GATE" : "DENY_ACCESS",
+      employee,
+      log,
+      gateStatus: {
+        ...fallbackGateStatus,
         state: authorized ? "Deschisa" : "Inchisa",
         activeLed: authorized ? "Verde" : "Rosu",
         lastSync: new Date().toISOString(),
       },
-      message: authorized ? "Acces permis" : "Cod invalid sau expirat",
+      message: authorized ? "Acces permis local" : "Cod invalid sau expirat",
     };
   }
 }

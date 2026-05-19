@@ -4,6 +4,8 @@ import { getEmployees, saveEmployee } from "../services/api.js";
 
 const emptyEmployee = {
   name: "",
+  cnp: "",
+  divisionId: 1,
   role: "",
   department: "",
   schedule: "08:00 - 17:00",
@@ -38,6 +40,8 @@ export default function Employees() {
     const employee = {
       ...editing,
       name: form.get("name"),
+      cnp: form.get("cnp"),
+      divisionId: Number(form.get("divisionId") || editing?.divisionId || 1),
       role: form.get("role"),
       department: form.get("department"),
       schedule: form.get("schedule"),
@@ -97,6 +101,14 @@ export default function Employees() {
             <label>
               Nume complet
               <input name="name" defaultValue={editing.name} required />
+            </label>
+            <label>
+              CNP / identificator
+              <input name="cnp" defaultValue={editing.cnp} required />
+            </label>
+            <label>
+              ID divizie
+              <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
             </label>
             <label>
               Rol

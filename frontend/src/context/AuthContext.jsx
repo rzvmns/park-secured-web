@@ -1,28 +1,49 @@
 import { createContext, useContext, useMemo, useState } from "react";
+import {
+  clearSession,
+  getStoredToken,
+  getStoredUser,
+  loginRequest,
+} from "../services/api.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => getStoredUser());
+  const [token, setToken] = useState(() => getStoredToken());
+  const [authError, setAuthError] = useState("");
 
-  const login = ({ email }) => {
-    setUser({
-      name: email?.split("@")[0] || "Utilizator ParkSecured",
-      role: "Administrator",
-      department: "Securitate",
-    });
+  const login = async ({ email, password }) => {
+    setAuthError("");
+
+    try {
+      const session = await loginRequest({ email, password });
+      setUser(session.user);
+      setToken(session.token);
+      return session;
+    } catch (error) {
+      setAuthError(error.message || "Autentificarea a esuat");
+      throw error;
+    }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    clearSession();
+    setUser(null);
+    setToken(null);
+    setAuthError("");
+  };
 
   const value = useMemo(
     () => ({
       user,
-      isAuthenticated: Boolean(user),
+      token,
+      authError,
+      isAuthenticated: Boolean(user && token),
       login,
       logout,
     }),
-    [user],
+    [authError, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

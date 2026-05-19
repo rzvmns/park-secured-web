@@ -12,7 +12,7 @@ export default function Reports() {
     return <div className="card skeleton-card">Se incarca rapoartele...</div>;
   }
 
-  const maxMonthly = Math.max(...reports.monthly.map((item) => item.value));
+  const maxMonthly = Math.max(...reports.monthly.map((item) => item.value), 1);
 
   return (
     <div className="page-grid">
