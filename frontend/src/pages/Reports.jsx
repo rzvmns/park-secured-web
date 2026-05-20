@@ -8,6 +8,12 @@ export default function Reports() {
     getReports().then(setReports);
   }, []);
 
+  // --- FUNCTIA DE EXPORT CSV ---
+  const handleExportCSV = () => {
+    // Deschide ruta direct pentru a porni descarcarea nativa in browser de pe backend-ul tau
+    window.location.href = "http://localhost:5001/api/export-csv";
+  };
+
   if (!reports) {
     return <div className="card skeleton-card">Se incarca rapoartele...</div>;
   }
@@ -21,7 +27,12 @@ export default function Reports() {
           <p className="eyebrow">Rapoarte</p>
           <h2>Prezenta si activitate pe departamente</h2>
         </div>
-        <button className="ghost-button" type="button">
+        {/* Am legat functia handleExportCSV de butonul de mai jos */}
+        <button 
+          className="ghost-button" 
+          type="button" 
+          onClick={handleExportCSV}
+        >
           Export CSV
         </button>
       </section>
