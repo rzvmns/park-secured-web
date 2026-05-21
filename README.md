@@ -1,53 +1,57 @@
-# ParkSecured Web
+# ParkSecured Web & Backend unificat
 
-Interfata React pentru administrarea si monitorizarea accesului ParkSecured.
-Frontend-ul este configurat sa consume API-ul cloud din `park-secured-cloud`.
+Modulul central de backend (Node.js + Express) și interfața web destinate administrării, monitorizării și controlului fluxului de acces în parcare. Sistemul folosește o arhitectură modernă de securitate bazată pe **Sesiuni Hardware Criptografice Rotative**, eliminând complet utilizarea token-urilor statice vulnerabile.
 
-## Configurare
+---
 
-```powershell
-cd frontend
-cp .env.example .env
-```
+## 🛠️ Configurare și Rulare Backend Local
 
-Valoarea implicita pentru API-ul cloud hostat pe Render:
-
-```text
-VITE_API_BASE_URL=https://park-secured-cloud.onrender.com/api
-```
-
-Ruleaza:
-
-```powershell
+### 1. Navigare și Dependințe
+Asigură-te că te afli în folderul corect și instalează modulele necesare (inclusiv pachetele de securitate pentru baze de date și criptare):
+```bash
+cd backend
 npm install
-npm run dev
 ```
 
-Cont initial, dupa initializarea bazei de date din cloud:
+### 2. Pornire Server
+Pornește instanța de backend sincronizată cu baza de date din cloud:
+```
+node index.js
 
-```text
-email: admin@parksecure.local
-password: admin123
 ```
 
-## Integrare cloud
+Serverul va rula local pe portul 5001 și va asculta conexiunile venite de la aplicația Mobile sau Embedded.
 
-Frontend-ul foloseste:
+### 🔐 Logica Unificată de Autentificare și Sesiune (Mobile & Web)
+    Sistemul utilizează o singură Cloud Render (PostgreSQL). Parolele utilizatorilor sunt stocate securizat sub formă de hash-uri BCrypt.
+Fluxul Securizat de Acces:
+1. Identificare: Angajatul introduce credențialele pe dispozitivul mobil (accounts).
+2. Validare Criptografică: Backend-ul verifică hash-ul parolei folosind bcrypt.compare.
+3. Garanția Unicității: La fiecare logare reușită, sistemul șterge forțat orice sesiune anterioară (DELETE FROM smartphones) asociată angajatului sau amprentei hardware respective, asigurând regula: 1 Angajat = 1 Sesiune Activă.
+4. Emitere accessSeed: Generarea criptografică a unui cod opac aleatoriu de 64 de caractere, salvat în tabela smartphones și transmis local pe telefon pentru deblocarea barierei.
 
-```text
-POST /api/auth/login
-GET  /api/employees
-POST /api/employees
-PUT  /api/employees/:id
-GET  /api/access-events
-POST /api/access-events
-GET  /api/reports/global
-GET  /api/reports/division/:divisionId
-GET  /api/divisions
-```
+### 🌐 Endpoint-uri Active și Rutare REST API
+Sistemul expune următoarele rute esențiale care consumă direct datele din tabela refactorizată accounts:
 
-Tokenul JWT primit la login este trimis automat in headerul:
+🔹 Segmentul Mobile Securitizat
+POST /api/mobile/login-secure
+    Rol: Autentificare inițială prin BCrypt și înregistrare unică a amprentei hardware.
+    Payload: { email, password, platform, deviceIdentifier }
+    Răspuns: Returnează codul secret de sesiune accessSeed.
+POST /api/validate-access
+    Rol: Validarea instantanee a seed-ului pentru deschiderea fizică a barierei.
+    Payload: { accessSeed }
+    Acțiune: Schimbă starea porții în mod dinamic și inserează logul de audit în tabela access_events.
 
-```text
-Authorization: Bearer <token>
-```
+🔹 Segmentul Web & Rapoarte Analytics
+GET /api/export-csv
+    Rol: Exportul complet, dinamic și securizat al jurnalului de accesări.
+    Comportament: Formatează automat timestamp-urile în format ISO standardizat și generează fișierul raport_accesari_parksecured.csv.
+    
+### 📁 Structura Bazei de Date Sincronizate (Render)
+Toate operațiunile se execută live pe instanța hostată, interogând următoarele entități corelate:
+🗂️ accounts - Stochează e-mailul, hash-ul parolei (BCrypt), rolul și legătura directă 1:1 prin cheie străină (employee_id) către personal.
+👥 employees - Datele de identificare, intervalele orare și permisiunile de bază ale personalului autorizat.
+📱 smartphones - Găzduiește amprenta unică a terminalului (device_identifier), platforma și jetonul curent de sesiune rotativă (access_seed).
+📊 access_events - Jurnalul istoric complet de audit (intrări/ieșiri, status de acces) utilizat la generarea rapoartelor manageriale.
+"""
