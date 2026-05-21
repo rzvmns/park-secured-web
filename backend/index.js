@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
+
+const crypto = require("crypto");
+const bcrypt = require("bcrypt"); // sau require("bcryptjs") în funcție de ce apare în package.json
+
 // --- CONECTARE POSTGRESQL (RENDER) ---
 // --- CONECTARE POSTGRESQL (RENDER) REALĂ ---
 const DATABASE_URL = "postgresql://parksecure_db_user:IXxd7rbgbi76Y48ba6HvcJVumIQpkVNs@dpg-d867hqn7f7vs739oi4e0-a.frankfurt-postgres.render.com/parksecure_db";
@@ -47,75 +51,154 @@ function setGateTemporarilyOpen() {
   setTimeout(() => updateGate("Inchisa", "Galben"), 5000);
 }
 
-// --- RUTE COMPATIBILE CU PARTEA COLEGII TALE ---
 
-app.get("/api/status", (req, res) => {
-  res.json({ status: "online", mode: "production", database: "postgresql", timestamp: new Date().toISOString() });
-});
-
-app.get("/api/gate/status", (req, res) => res.json(gateStatus));
-
-// --- LOGICA DE VALIDARE ADAPTATĂ PENTRU REȚEAUA EI DIN GIT ---
-app.post("/api/validate-access", async (req, res) => {
+// =========================================================================
+// 1. ENDPOINT UNIFICAT: AUTENTIFICARE CU BCYCRYPT ȘI EMITERE SEED UNIC
+// =========================================================================
+app.post("/api/mobile/login-secure", async (req, res) => {
   try {
-    const { deviceIdentifier } = req.body; // Prindem identificatorul trimis automat de iPhone
+    const { email, password, platform, deviceIdentifier } = req.body;
 
-    if (!deviceIdentifier) {
-      return res.status(400).json({ authorized: false, message: "Identificator dispozitiv lipsa." });
+    // Validare primară a inputului
+    if (!email || !password || !deviceIdentifier) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Toate câmpurile (email, password, deviceIdentifier) sunt obligatorii!" 
+      });
     }
 
-    // 1. Verificam in Render daca acest dispozitiv este inregistrat si de incredere
-    const deviceQuery = `
-      SELECT s.*, e.first_name, e.last_name, e.is_active, e.cnp
-      FROM smartphones s
-      INNER JOIN employees e ON e.employee_id = s.employee_id
-      WHERE s.device_identifier = $1
+    console.log(`[🔐 LOGIN INTENT] Încercare de autentificare pentru: ${email}`);
+
+    // Pasul A: Căutăm contul în tabela redenumită 'accounts' și tragem datele angajatului activ
+    const accountQuery = `
+      SELECT a.account_id, a.email, a.password_hash, a.role, a.is_active, a.employee_id,
+             e.first_name, e.last_name, e.is_active as employee_active
+      FROM accounts a
+      INNER JOIN employees e ON a.employee_id = e.employee_id
+      WHERE a.email = $1
     `;
-    const deviceResult = await pool.query(deviceQuery, [deviceIdentifier]);
-    const deviceData = deviceResult.rows[0];
+    const accountResult = await pool.query(accountQuery, [email]);
+    const accountData = accountResult.rows[0];
 
-    // 2. Daca telefonul nu exista in baza de date sau a fost blocat de admin (is_trusted = false)
-    if (!deviceData) {
-      return res.status(403).json({ authorized: false, message: "Dispozitiv mobil neinregistrat in sistem!" });
-    }
-    if (!deviceData.is_trusted) {
-      return res.status(403).json({ authorized: false, message: "Acest dispozitiv a fost blocat de administrator." });
-    }
-    if (!deviceData.is_active) {
-      return res.status(403).json({ authorized: false, message: "Contul angajatului asociat este inactiv." });
+    // Dacă e-mailul nu există în baza de date
+    if (!accountData) {
+      return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
     }
 
-    // 3. Generam token-ul securizat pe baza Seed-ului (folosim CNP-ul ca Seed fix) si a timpului
-    const minutCurent = new Date().getMinutes();
-    const stringPentruAmestec = deviceData.cnp + minutCurent;
-    let codCalculatPeServer = 0;
-    for (let i = 0; i < stringPentruAmestec.length; i++) {
-      codCalculatPeServer += stringPentruAmestec.charCodeAt(i);
+    // Verificăm dacă contul sau angajatul au fost dezactivați din panoul de administrare
+    if (!accountData.is_active || !accountData.employee_active) {
+      return res.status(403).json({ success: false, message: "Acest cont sau accesul angajatului a fost dezactivat." });
     }
-    codCalculatPeServer = (codCalculatPeServer * 17) % 10000;
 
-    console.log(`[TRUSTED DEVICE] Telefon detectat: ${deviceIdentifier} | Angajat: ${deviceData.first_name} | OTP calculat: ${codCalculatPeServer}`);
+    // Pasul B: Verificarea Criptografică a parolei folosind BCrypt
+    // Comparam parola introdusă în text clar cu hash-ul din baza de date ($2b$10$...)
+    const isPasswordCorrect = await bcrypt.compare(password, accountData.password_hash);
 
-    // 4. Inseram evenimentul in tabelul oficial access_events
-    const logQuery = `
-      INSERT INTO access_events (employee_id, smartphone_id, event_type, event_status, gate_code, source, notes)
-      VALUES ($1, $2, 'ENTRY', 'ALLOWED', 'GATE_PIETONAL', 'MOBILE_TRUSTED', 'Acces permis prin dispozitiv asociat securizat')
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
+    }
+
+    // Extragem ID-ul real al angajatului identificat cu succes
+    const realEmployeeId = accountData.employee_id;
+
+    // Pasul C: GARANTAREA UNICITĂȚII SESIUNII (Mecanism anti-clonare)
+    // Ștergem instant orice sesiune veche a acestui angajat sau orice alt telefon înregistrat cu acest ID hardware
+    await pool.query(`
+      DELETE FROM smartphones 
+      WHERE employee_id = $1 OR device_identifier = $2
+    `, [realEmployeeId, deviceIdentifier]);
+
+    // Pasul D: Generarea criptografică a noului access_seed opac (64 caractere)
+    const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
+
+    // Pasul E: Salvarea noii sesiuni fizice unice în baza de date pe Render
+    const insertQuery = `
+      INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+      VALUES ($1, $2, $3, $4, true)
+      RETURNING access_seed
     `;
-    await pool.query(logQuery, [deviceData.employee_id, deviceData.smartphone_id]);
+    await pool.query(insertQuery, [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]);
 
-    setGateTemporarilyOpen();
-    
-    return res.json({ 
-      authorized: true, 
-      name: `${deviceData.first_name} ${deviceData.last_name}`, 
-      action: "OPEN_GATE" 
+    console.log(`[🎯 SESSION GENERATED] ${accountData.first_name} ${accountData.last_name} s-a autentificat. Seed generat.`);
+
+    // Returnăm răspunsul de succes și seed-ul către telefon
+    return res.json({
+      success: true,
+      message: "Autentificare reușită și sesiune unică activată.",
+      accessSeed: noulSeedSesiune,
+      user: {
+        name: `${accountData.first_name} ${accountData.last_name}`,
+        role: accountData.role
+      }
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Eroare critică la login mobile:", err.message);
+    res.status(500).json({ success: false, message: "Eroare internă de server la procesarea bazei de date." });
   }
 });
+
+
+// =========================================================================
+// 2. ENDPOINT VALIDARE ACCES: VERIFICAREA SEED-ULUI PENTRU DESCHIDEREA PORȚII
+// =========================================================================
+app.post("/api/validate-access", async (req, res) => {
+  try {
+    const { accessSeed } = req.body;
+
+    if (!accessSeed) {
+      return res.status(400).json({ authorized: false, message: "Lipsește jetonul de sesiune (accessSeed)." });
+    }
+
+    // Interogăm baza de date pentru a vedea dacă acest seed unic corespunde unei sesiuni active și valide
+    const deviceQuery = `
+      SELECT s.smartphone_id, s.device_identifier, s.is_trusted, 
+             e.employee_id, e.first_name, e.last_name, e.is_active
+      FROM smartphones s
+      INNER JOIN employees e ON e.employee_id = s.employee_id
+      WHERE s.access_seed = $1
+    `;
+    const deviceResult = await pool.query(deviceQuery, [accessSeed]);
+    const deviceData = deviceResult.rows[0];
+
+    // Dacă seed-ul a fost revocat, înlocuit prin alt login sau nu există
+    if (!deviceData) {
+      return res.status(403).json({ authorized: false, message: "Sesiune invalidă sau expirată! Reautentificați-vă." });
+    }
+
+    if (!deviceData.is_trusted) {
+      return res.status(403).json({ authorized: false, message: "Dispozitivul a fost marcat ca nesigur de către administrator." });
+    }
+
+    if (!deviceData.is_active) {
+      return res.status(403).json({ authorized: false, message: "Accesul fizic pentru acest angajat este suspendat." });
+    }
+
+    console.log(`[🔓 ACCES PERMIS] Poarta principală deblocată pentru: ${deviceData.first_name} ${deviceData.last_name}`);
+
+    // Salvăm evenimentul în tabela oficială de audit (access_events) pentru rapoarte
+    await pool.query(`
+      INSERT INTO access_events (employee_id, smartphone_id, event_type, event_status, gate_code, source, notes)
+      VALUES ($1, $2, 'ENTRY', 'ALLOWED', 'GATE_MAIN', 'MOBILE_APP', 'Acces validat prin sesiune unică criptografică')
+    `, [deviceData.employee_id, deviceData.smartphone_id]);
+
+    // Deschidem poarta în simulatorul local (dacă există logica cu setTimeout)
+    if (typeof setGateTemporarilyOpen === "function") {
+      setGateTemporarilyOpen();
+    }
+    
+    return res.json({ 
+      authorized: true, 
+      name: `${deviceData.first_name} ${deviceData.last_name}` 
+    });
+
+  } catch (err) {
+    console.error("❌ Eroare la validarea accesului:", err.message);
+    res.status(500).json({ authorized: false, message: "Eroare la verificarea drepturilor de acces." });
+  }
+});
+
+
 
 // --- RUTĂ PENTRU EXPORT CSV - FIX TIMESTAMPS ---
 app.get("/api/export-csv", async (req, res) => {
@@ -177,37 +260,10 @@ app.get("/api/export-csv", async (req, res) => {
   }
 });
     
-// Rută temporară care repară datele lui Sorin în Render
-app.get("/api/test-db", async (req, res) => {
-  try {
-    // 1. Ne asiguram ca Sorin are codul 7777
-    await pool.query(`UPDATE employees SET badge_code = '7777' WHERE employee_id = 1`);
-    
-    // 2. Stergem o eventuala inregistrare veche ca sa nu avem eroare de cheie unica
-    await pool.query(`DELETE FROM smartphones WHERE device_identifier = 'iphone-teodora'`);
 
-    // 3. Inregistram telefonul tau si il legam de Sorin (employee_id = 1)
-    await pool.query(`
-      INSERT INTO smartphones (employee_id, platform, device_identifier, is_trusted)
-      VALUES (1, 'iOS', 'iphone-teodora', true)
-    `);
 
-    // Citim datele ca sa confirmam asocierea
-    const result = await pool.query(`
-      SELECT e.first_name, e.last_name, s.device_identifier, s.is_trusted 
-      FROM smartphones s
-      INNER JOIN employees e ON e.employee_id = s.employee_id
-      WHERE s.device_identifier = 'iphone-teodora'
-    `);
-    
-    res.json({
-      mesaj: "Dispozitiv mobil asociat cu succes in Cloud!",
-      asociere: result.rows[0]
-    });
-  } catch (err) {
-    res.status(500).json({ eroare: err.message });
-  }
-});
+
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend ParkSecured sincronizat cu Git pe portul ${PORT}`);
 });
