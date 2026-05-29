@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import EmployeeTable from "../components/EmployeeTable.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { getEmployees, saveEmployee } from "../services/api.js";
 
 const emptyEmployee = {
@@ -9,39 +10,51 @@ const emptyEmployee = {
   role: "",
   department: "",
   schedule: "08:00 - 17:00",
-  phone: "Neasociat",
-  carPlate: "",
+  phone: "Asociat",
+  carPlate: "-",
   autoAccess: false,
   status: "Activ",
 };
 
 export default function Employees() {
+  const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
 
+  const incaseazaAngajati = () => {
+    getEmployees().then(setEmployees).catch(console.error);
+  };
+
   useEffect(() => {
-    getEmployees().then(setEmployees);
+    incaseazaAngajati();
   }, []);
 
   const filteredEmployees = useMemo(() => {
     const value = query.toLowerCase();
-    return employees.filter((employee) =>
-      [employee.name, employee.department, employee.role, employee.carPlate]
+    return employees.filter((employee) => {
+      const areDreptulPeDivizie = user?.role === "SUPERADMIN" || employee.divisionId === user?.divisionId;
+      const matchesQuery = [employee.name, employee.department, employee.role, employee.carPlate]
         .join(" ")
         .toLowerCase()
-        .includes(value),
-    );
-  }, [employees, query]);
+        .includes(value);
+      return areDreptulPeDivizie && matchesQuery;
+    });
+  }, [employees, query, user]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    
+    const divisionIdFinal = user?.role === "SUPERADMIN" 
+      ? Number(form.get("divisionId")) 
+      : user?.divisionId;
+
     const employee = {
       ...editing,
       name: form.get("name"),
       cnp: form.get("cnp"),
-      divisionId: Number(form.get("divisionId") || editing?.divisionId || 1),
+      divisionId: divisionIdFinal,
       role: form.get("role"),
       department: form.get("department"),
       schedule: form.get("schedule"),
@@ -50,26 +63,34 @@ export default function Employees() {
       autoAccess: form.get("autoAccess") === "on",
       status: form.get("status"),
     };
-    const saved = await saveEmployee(employee);
-    setEmployees((current) => {
-      const exists = current.some((item) => item.id === saved.id);
-      return exists
-        ? current.map((item) => (item.id === saved.id ? saved : item))
-        : [saved, ...current];
-    });
-    setEditing(null);
+
+    try {
+      const saved = await saveEmployee(employee);
+      setEmployees((current) => {
+        const exists = current.some((item) => item.id === saved.id);
+        return exists
+          ? current.map((item) => (item.id === saved.id ? saved : item))
+          : [saved, ...current];
+      });
+      setEditing(null);
+      incaseazaAngajati();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
     <div className="page-grid">
       <section className="section-heading page-heading">
         <div>
-          <p className="eyebrow">Administrare</p>
-          <h2>Angajati si drepturi de acces</h2>
+          <p className="eyebrow">Modul Administrare ({user?.role || "Fără Rol"})</p>
+          <h2>Angajati si drepturi de acces - Divizia {user?.role === "SUPERADMIN" ? "Globală" : user?.divisionId}</h2>
         </div>
-        <button className="primary-button" type="button" onClick={() => setEditing(emptyEmployee)}>
-          Adauga angajat
-        </button>
+        {user?.role !== "PORTAR" && (
+          <button className="primary-button" type="button" onClick={() => setEditing(emptyEmployee)}>
+            Adauga angajat
+          </button>
+        )}
       </section>
 
       <section className="card">
@@ -83,14 +104,13 @@ export default function Employees() {
           />
           <span className="badge info">{filteredEmployees.length} rezultate</span>
         </div>
-        <EmployeeTable employees={filteredEmployees} onEdit={setEditing} />
+        <EmployeeTable employees={filteredEmployees} onEdit={user?.role !== "PORTAR" ? setEditing : undefined} />
       </section>
 
       {editing && (
-        <section className="card form-card">
+        <section className="card form-card" style={{ marginTop: "20px" }}>
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Formular</p>
               <h2>{editing.id ? "Editare angajat" : "Angajat nou"}</h2>
             </div>
             <button className="ghost-button" type="button" onClick={() => setEditing(null)}>
@@ -106,10 +126,14 @@ export default function Employees() {
               CNP / identificator
               <input name="cnp" defaultValue={editing.cnp} required />
             </label>
-            <label>
-              ID divizie
-              <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
-            </label>
+            {user?.role === "SUPERADMIN" ? (
+              <label>
+                ID divizie
+                <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
+              </label>
+            ) : (
+              <input type="hidden" name="divisionId" value={user?.divisionId} />
+            )}
             <label>
               Rol
               <input name="role" defaultValue={editing.role} required />
@@ -125,27 +149,27 @@ export default function Employees() {
             <label>
               Smartphone
               <select name="phone" defaultValue={editing.phone}>
-                <option>Asociat</option>
-                <option>Neasociat</option>
+                <option value="Asociat">Asociat</option>
+                <option value="Neasociat">Neasociat</option>
               </select>
             </label>
             <label>
               Status
               <select name="status" defaultValue={editing.status}>
-                <option>Activ</option>
-                <option>Inactiv</option>
+                <option value="Activ">Activ</option>
+                <option value="Inactiv">Inactiv</option>
               </select>
             </label>
             <label>
               Numar masina
               <input name="carPlate" defaultValue={editing.carPlate} />
             </label>
-            <label className="checkbox-field">
+            <label className="checkbox-field" style={{ display: "flex", gap: "8px", alignItems: "center", gridColumn: "span 2" }}>
               <input name="autoAccess" type="checkbox" defaultChecked={editing.autoAccess} />
-              Acces auto permis
+              <span>Acces auto permis (Barieră ESP32)</span>
             </label>
-            <button className="primary-button" type="submit">
-              Salveaza
+            <button className="primary-button" type="submit" style={{ marginTop: "10px" }}>
+              Salveaza Modificari
             </button>
           </form>
         </section>

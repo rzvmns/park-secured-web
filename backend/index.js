@@ -10,11 +10,9 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
-
 const crypto = require("crypto");
-const bcrypt = require("bcrypt"); // sau require("bcryptjs") în funcție de ce apare în package.json
+const bcrypt = require("bcrypt");
 
-// --- CONECTARE POSTGRESQL (RENDER) ---
 // --- CONECTARE POSTGRESQL (RENDER) REALĂ ---
 const DATABASE_URL = "postgresql://parksecure_db_user:IXxd7rbgbi76Y48ba6HvcJVumIQpkVNs@dpg-d867hqn7f7vs739oi4e0-a.frankfurt-postgres.render.com/parksecure_db";
 const pool = new Pool({
@@ -51,25 +49,22 @@ function setGateTemporarilyOpen() {
   setTimeout(() => updateGate("Inchisa", "Galben"), 5000);
 }
 
-
 // =========================================================================
-// 1. ENDPOINT UNIFICAT: AUTENTIFICARE CU BCYCRYPT ȘI EMITERE SEED UNIC
+// 1. ENDPOINT UNIFICAT: AUTENTIFICARE SECURIZATĂ (STRICT 1 CONT = 1 HARDWARE)
 // =========================================================================
 app.post("/api/mobile/login-secure", async (req, res) => {
   try {
     const { email, password, platform, deviceIdentifier } = req.body;
 
-    // Validare primară a inputului
     if (!email || !password || !deviceIdentifier) {
       return res.status(400).json({ 
         success: false, 
-        message: "Toate câmpurile (email, password, deviceIdentifier) sunt obligatorii!" 
+        message: "Toate câmpurile sunt obligatorii!" 
       });
     }
 
     console.log(`[🔐 LOGIN INTENT] Încercare de autentificare pentru: ${email}`);
 
-    // Pasul A: Căutăm contul în tabela redenumită 'accounts' și tragem datele angajatului activ
     const accountQuery = `
       SELECT a.account_id, a.email, a.password_hash, a.role, a.is_active, a.employee_id,
              e.first_name, e.last_name, e.is_active as employee_active
@@ -80,51 +75,57 @@ app.post("/api/mobile/login-secure", async (req, res) => {
     const accountResult = await pool.query(accountQuery, [email]);
     const accountData = accountResult.rows[0];
 
-    // Dacă e-mailul nu există în baza de date
     if (!accountData) {
       return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
     }
 
-    // Verificăm dacă contul sau angajatul au fost dezactivați din panoul de administrare
     if (!accountData.is_active || !accountData.employee_active) {
       return res.status(403).json({ success: false, message: "Acest cont sau accesul angajatului a fost dezactivat." });
     }
 
-    // Pasul B: Verificarea Criptografică a parolei folosind BCrypt
-    // Comparam parola introdusă în text clar cu hash-ul din baza de date ($2b$10$...)
     const isPasswordCorrect = await bcrypt.compare(password, accountData.password_hash);
-
     if (!isPasswordCorrect) {
       return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
     }
 
-    // Extragem ID-ul real al angajatului identificat cu succes
     const realEmployeeId = accountData.employee_id;
 
-    // Pasul C: GARANTAREA UNICITĂȚII SESIUNII (Mecanism anti-clonare)
-    // Ștergem instant orice sesiune veche a acestui angajat sau orice alt telefon înregistrat cu acest ID hardware
-    await pool.query(`
-      DELETE FROM smartphones 
-      WHERE employee_id = $1 OR device_identifier = $2
-    `, [realEmployeeId, deviceIdentifier]);
-
-    // Pasul D: Generarea criptografică a noului access_seed opac (64 caractere)
+    const existingDeviceQuery = `SELECT device_identifier FROM smartphones WHERE employee_id = $1`;
+    const existingDeviceResult = await pool.query(existingDeviceQuery, [realEmployeeId]);
+    
     const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
 
-    // Pasul E: Salvarea noii sesiuni fizice unice în baza de date pe Render
-    const insertQuery = `
-      INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
-      VALUES ($1, $2, $3, $4, true)
-      RETURNING access_seed
-    `;
-    await pool.query(insertQuery, [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]);
+    if (existingDeviceResult.rows.length > 0) {
+      const currentHardwareId = existingDeviceResult.rows[0].device_identifier;
 
-    console.log(`[🎯 SESSION GENERATED] ${accountData.first_name} ${accountData.last_name} s-a autentificat. Seed generat.`);
+      if (currentHardwareId !== deviceIdentifier) {
+        console.warn(`[⚠️ SECURITATE] Tentativă de clonare cont pentru ${email}. Hardware blocat.`);
+        return res.status(403).json({ 
+          success: false, 
+          message: "Dispozitiv neautorizat! Acest cont este deja asociat unui alt smartphone. Contactați departamentul HR pentru resetare." 
+        });
+      }
 
-    // Returnăm răspunsul de succes și seed-ul către telefon
+      const updateQuery = `
+        UPDATE smartphones 
+        SET access_seed = $1, platform = $2, is_trusted = true
+        WHERE employee_id = $3
+      `;
+      await pool.query(updateQuery, [noulSeedSesiune, platform || 'iOS', realEmployeeId]);
+      console.log(`[🔄 SESSION ROTATED] Sesiune actualizată pe același dispozitiv pentru: ${accountData.first_name}`);
+
+    } else {
+      const insertQuery = `
+        INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+        VALUES ($1, $2, $3, $4, true)
+      `;
+      await pool.query(insertQuery, [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]);
+      console.log(`[📱 FIRST LOGIN] Dispozitivul a fost asociat unic cu succes pentru: ${accountData.first_name}`);
+    }
+
     return res.json({
       success: true,
-      message: "Autentificare reușită și sesiune unică activată.",
+      message: "Autentificare reușită.",
       accessSeed: noulSeedSesiune,
       user: {
         name: `${accountData.first_name} ${accountData.last_name}`,
@@ -138,19 +139,21 @@ app.post("/api/mobile/login-secure", async (req, res) => {
   }
 });
 
-
 // =========================================================================
-// 2. ENDPOINT VALIDARE ACCES: VERIFICAREA SEED-ULUI PENTRU DESCHIDEREA PORȚII
+// 2. ENDPOINT VALIDARE ACCES MODIFICAT (COPIAZĂ PESTE CEL VECHI DIN BACKEND)
 // =========================================================================
 app.post("/api/validate-access", async (req, res) => {
   try {
-    const { accessSeed } = req.body;
+    const { accessSeed, direction } = req.body; // 🎯 Preluăm direcția: ENTRY sau EXIT
 
     if (!accessSeed) {
       return res.status(400).json({ authorized: false, message: "Lipsește jetonul de sesiune (accessSeed)." });
     }
 
-    // Interogăm baza de date pentru a vedea dacă acest seed unic corespunde unei sesiuni active și valide
+    // Stabilim tipul de eveniment implicit dacă mobilul nu trimite nimic din greșeală
+    const tipEvenimentFinal = direction === 'EXIT' ? 'EXIT' : 'ENTRY';
+    const mesajNote = tipEvenimentFinal === 'ENTRY' ? 'Acces validat prin sesiune unică' : 'Părăsire incintă confirmată';
+
     const deviceQuery = `
       SELECT s.smartphone_id, s.device_identifier, s.is_trusted, 
              e.employee_id, e.first_name, e.last_name, e.is_active
@@ -161,28 +164,26 @@ app.post("/api/validate-access", async (req, res) => {
     const deviceResult = await pool.query(deviceQuery, [accessSeed]);
     const deviceData = deviceResult.rows[0];
 
-    // Dacă seed-ul a fost revocat, înlocuit prin alt login sau nu există
     if (!deviceData) {
       return res.status(403).json({ authorized: false, message: "Sesiune invalidă sau expirată! Reautentificați-vă." });
     }
 
     if (!deviceData.is_trusted) {
-      return res.status(403).json({ authorized: false, message: "Dispozitivul a fost marcat ca nesigur de către administrator." });
+      return res.status(403).json({ authorized: false, message: "Dispozitivul a fost marcat ca nesigur." });
     }
 
     if (!deviceData.is_active) {
       return res.status(403).json({ authorized: false, message: "Accesul fizic pentru acest angajat este suspendat." });
     }
 
-    console.log(`[🔓 ACCES PERMIS] Poarta principală deblocată pentru: ${deviceData.first_name} ${deviceData.last_name}`);
+    console.log(`[🔓 ACCES ACTIONAT - ${tipEvenimentFinal}] Poarta deschisă pentru: ${deviceData.first_name} ${deviceData.last_name}`);
 
-    // Salvăm evenimentul în tabela oficială de audit (access_events) pentru rapoarte
+    // 🎯 SALVARE ÎN BAZA DE DATE CU EXPLICIT AREA DIRECȚIEI (ENTRY / EXIT)
     await pool.query(`
       INSERT INTO access_events (employee_id, smartphone_id, event_type, event_status, gate_code, source, notes)
-      VALUES ($1, $2, 'ENTRY', 'ALLOWED', 'GATE_MAIN', 'MOBILE_APP', 'Acces validat prin sesiune unică criptografică')
-    `, [deviceData.employee_id, deviceData.smartphone_id]);
+      VALUES ($1, $2, $3, 'ALLOWED', 'GATE_MAIN', 'MOBILE_APP', $4)
+    `, [deviceData.employee_id, deviceData.smartphone_id, tipEvenimentFinal, mesajNote]);
 
-    // Deschidem poarta în simulatorul local (dacă există logica cu setTimeout)
     if (typeof setGateTemporarilyOpen === "function") {
       setGateTemporarilyOpen();
     }
@@ -197,13 +198,9 @@ app.post("/api/validate-access", async (req, res) => {
     res.status(500).json({ authorized: false, message: "Eroare la verificarea drepturilor de acces." });
   }
 });
-
-
-
-// --- RUTĂ PENTRU EXPORT CSV - FIX TIMESTAMPS ---
+// --- RUTĂ PENTRU EXPORT CSV ---
 app.get("/api/export-csv", async (req, res) => {
   try {
-    // Luăm tot din tabel FĂRĂ să mai facem sortare pe o coloană fixă (evită eroarea created_at)
     const result = await pool.query("SELECT * FROM access_events");
 
     if (result.rows.length === 0) {
@@ -212,25 +209,19 @@ app.get("/api/export-csv", async (req, res) => {
       return res.status(200).send("Baza de date nu contine niciun eveniment de acces in acest moment.");
     }
 
-    // 1. GENERARE DINAMICĂ HEADER
     const columnNames = Object.keys(result.rows[0]);
     let csvContent = columnNames.join(",") + "\n";
 
-    // 2. GENERARE DINAMICĂ RÂNDURI
     result.rows.forEach(row => {
       const rowValues = columnNames.map(colName => {
         let value = row[colName];
+        if (value === null || value === undefined) return "";
         
-        if (value === null || value === undefined) {
-          return "";
-        }
-        
-        // Verificăm inteligent dacă valoarea este o dată, fără să ne pese cum se numește coloana
         if (value instanceof Date || (typeof value === "string" && value.includes("T") && !isNaN(Date.parse(value)))) {
           try {
             return new Date(value).toISOString().replace("T", " ").substring(0, 19);
           } catch (e) {
-            return String(value); // Dacă eșuează formatarea, o lăsăm ca text brut
+            return String(value);
           }
         }
 
@@ -238,33 +229,84 @@ app.get("/api/export-csv", async (req, res) => {
         if (stringValue.includes(",")) {
           return `"${stringValue.replace(/"/g, '""')}"`;
         }
-
         return stringValue;
       });
-
       csvContent += rowValues.join(",") + "\n";
     });
 
-    // 3. Header-e descărcare
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=raport_accesari_parksecured.csv");
-    
     return res.status(200).send(csvContent);
 
   } catch (err) {
     console.error("Eroare la generare CSV:", err);
-    res.status(500).json({ 
-      error: "Nu s-a putut genera raportul CSV.", 
-      detalii_tehnice: err.message 
-    });
+    res.status(500).json({ error: "Nu s-a putut genera raportul CSV.", detalii_tehnice: err.message });
+  }
+});
+
+// =========================================================================
+// 🎛️ ENDPOINT-URI EXCLUSIVE PENTRU MODULUL HARDWARE ESP32
+// =========================================================================
+
+// 1. ESP32 cere starea barierii și verifică dacă s-a aprobat o deschidere de la poartă / mobil
+app.get("/api/hardware/gate-status", (req, res) => {
+  // Sincronizăm starea cu memoria backend-ului
+  return res.json({
+    state: gateStatus.state,         // "Inchisa", "Deschisa", "In curs de deschidere", etc.
+    activeLed: gateStatus.activeLed, // "Galben", "Verde", "Rosu", "Albastru"
+    commandOpen: gateStatus.state === "Deschisa" // Flag simplu de tip true/false pentru motor
+  });
+});
+
+// 2. ESP32 anunță serverul când starea fizică s-a schimbat (Senzori / Limitatori cursă / Bariere IR)
+app.post("/api/hardware/update-status", async (req, res) => {
+  try {
+    const { hardwareState, hardwareLed, eventType, employeeId } = req.body;
+
+    // Actualizăm starea globală a porții (pe care interfața Portarului o citește live)
+    updateGate(hardwareState, hardwareLed);
+    console.log(`[🎛️ ESP32 SYNC] Starea porții a devenit: ${hardwareState} (LED: ${hardwareLed})`);
+
+    // Dacă mașina a trecut complet și s-a generat un eveniment fizic de trecere
+    if (eventType && employeeId) {
+      await pool.query(`
+        INSERT INTO access_events (employee_id, event_type, event_status, gate_code, source, notes)
+        VALUES ($1, $2, 'ALLOWED', 'GATE_MAIN', 'ESP32_HARDWARE', 'Trecere completă detectată de barierele de lumină IR')
+      `, [employeeId, eventType]);
+      console.log(`[💾 BD AUDIT] Eveniment ${eventType} salvat automat de la distanță via ESP32.`);
+    }
+
+    return res.json({ success: true, message: "Backend sincronizat cu succes cu hardware-ul fizic." });
+  } catch (err) {
+    console.error("❌ Eroare la sincronizarea hardware:", err.message);
+    res.status(500).json({ success: false, message: "Eroare internă de comunicație." });
   }
 });
     
+// =========================================================================
+// 🏢 ENDPOINT HR: ȘTERGERE DISPOZITIV ASOCIAT
+// =========================================================================
+app.delete("/api/admin/reset-device/:employeeId", async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    console.log(`[🏢 HR ACTION] Cerere de resetare dispozitiv pentru employee_id: ${employeeId}`);
 
+    const deleteResult = await pool.query(`DELETE FROM smartphones WHERE employee_id = $1`, [employeeId]);
+
+    if (deleteResult.rowCount === 0) {
+      return res.status(444).json({ success: false, message: "Angajatul nu avea niciun dispozitiv asociat." });
+    }
+
+    return res.json({ success: true, message: "Dispozitivul vechi a fost eliminat cu succes." });
+
+  } catch (err) {
+    console.error("❌ Eroare la resetarea HR a dispozitivului:", err.message);
+    res.status(500).json({ success: false, message: "Eroare de server la eliminarea dispozitivului." });
+  }
+});
 
 
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend ParkSecured sincronizat cu Git pe portul ${PORT}`);
 });
-
