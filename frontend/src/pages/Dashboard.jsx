@@ -31,12 +31,70 @@ function CurrentTime() {
   );
 }
 
+function AccessDetailsCard({ employee, authorized, message }) {
+  if (!employee && !message) return null;
+
+  const borderColor = authorized ? "#0f8a5f" : "#c2413a";
+  const bgColor = authorized ? "#f0fdf4" : "#fff5f5";
+
+  return (
+    <div style={{
+      border: `2px solid ${borderColor}`,
+      borderRadius: "8px",
+      padding: "16px",
+      marginTop: "16px",
+      background: bgColor,
+      transition: "all 0.3s ease",
+    }}>
+      {employee ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          {employee.photoUrl ? (
+            <img
+              src={employee.photoUrl}
+              alt={employee.name}
+              style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${borderColor}` }}
+            />
+          ) : (
+            <div style={{
+              width: "64px", height: "64px", borderRadius: "50%",
+              background: authorized ? "#0f8a5f" : "#c2413a",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "white", fontSize: "24px", fontWeight: "700", flexShrink: 0,
+            }}>
+              {employee.name?.slice(0, 1) || "?"}
+            </div>
+          )}
+          <div>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#18212f" }}>
+              {employee.name}
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#66758a" }}>
+              {employee.department} · {employee.role}
+            </p>
+            {employee.carPlate && employee.carPlate !== "-" && (
+              <p style={{ margin: "4px 0 0", fontSize: "13px", fontWeight: "600", color: "#18212f" }}>
+                🚘 {employee.carPlate}
+              </p>
+            )}
+            <p style={{ margin: "6px 0 0", fontSize: "13px", fontWeight: "700", color: borderColor }}>
+              {authorized ? "✅ ACCES PERMIS" : "❌ ACCES REFUZAT"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: borderColor, fontWeight: "600" }}>{message}</p>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [gateStatus, setGateStatus] = useState(null);
   const [logs, setLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [accessMessage, setAccessMessage] = useState("");
+  const [lastAccess, setLastAccess] = useState(null);
 
   const refreshDashboard = () => {
     getGateStatus().then(setGateStatus).catch(console.error);
@@ -52,8 +110,8 @@ export default function Dashboard() {
       return () => clearInterval(interval);
     }
   }, [user]);
-  
-  if (user?.role === "HR_MANAGER") {
+
+  if (user?.role === "hr") {
     return (
       <div className="card" style={{ padding: "40px", textAlign: "center" }}>
         <h2>Panou Operațional Poartă</h2>
@@ -72,9 +130,14 @@ export default function Dashboard() {
       });
 
       setAccessMessage(result.message || (result.authorized ? "Acces permis" : "Acces refuzat"));
+      setLastAccess({
+        employee: result.employee,
+        authorized: result.authorized,
+      });
       refreshDashboard();
     } catch (error) {
       setAccessMessage("Eroare de comunicație cu backend-ul.");
+      setLastAccess(null);
     }
   };
 
@@ -106,7 +169,7 @@ export default function Dashboard() {
               {latestLog?.status || "Așteptare..."}
             </span>
           </div>
-          
+
           <div className="profile-row">
             <span className="avatar xl">{latestLog?.employeeName?.slice(0, 1) || "?"}</span>
             <div>
@@ -130,7 +193,12 @@ export default function Dashboard() {
               Interzice manual
             </button>
           </div>
-          {accessMessage && <p className="inline-feedback">{accessMessage}</p>}
+
+          <AccessDetailsCard
+            employee={lastAccess?.employee}
+            authorized={lastAccess?.authorized}
+            message={!lastAccess && accessMessage ? accessMessage : null}
+          />
         </section>
       </div>
 
