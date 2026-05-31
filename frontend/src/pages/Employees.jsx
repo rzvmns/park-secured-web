@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import EmployeeTable from "../components/EmployeeTable.jsx";
+import { useEffect, useMemo, useState } from "react";import EmployeeTable from "../components/EmployeeTable.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getEmployees, saveEmployee, request } from "../services/api.js";
 
@@ -26,11 +25,43 @@ function generateTempPassword() {
   return pass;
 }
 
+function generateEmail(firstName, lastName, existingEmails = []) {
+  const normalize = (s) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const base = `${normalize(firstName)}.${normalize(lastName)}`;
+  const candidate = `${base}@parksecure.local`;
+
+  if (!existingEmails.includes(candidate)) return candidate;
+
+  let i = 2;
+  while (existingEmails.includes(`${base}${i}@parksecure.local`)) i++;
+  return `${base}${i}@parksecure.local`;
+}
+
 function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdPassword, setCreatedPassword] = useState(null);
+  const [emailPreview, setEmailPreview] = useState("");
+  const [existingEmails, setExistingEmails] = useState([]);
   const isNew = !editing?.employeeId && !editing?.id;
+
+  useEffect(() => {
+    if (!isNew) return;
+    request("/users").then((users) => {
+      setExistingEmails((users || []).map((u) => u.email).filter(Boolean));
+    }).catch(() => {});
+  }, [isNew]);
+
+  const updateEmailPreview = (firstName, lastName) => {
+    if (!firstName && !lastName) { setEmailPreview(""); return; }
+    setEmailPreview(generateEmail(firstName, lastName, existingEmails));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -56,7 +87,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
       status: form.get("status"),
     };
 
-    const emailCont = form.get("emailCont")?.trim();
+    const emailCont = isNew ? emailPreview : null;
 
     try {
       const saved = await saveEmployee(employee);
@@ -141,12 +172,22 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
         <form className="form-grid" onSubmit={handleSubmit}>
           <label>
             Prenume
-            <input name="firstName" defaultValue={editing.firstName} required />
+            <input
+              name="firstName"
+              defaultValue={editing.firstName}
+              required
+              onChange={(e) => updateEmailPreview(e.target.value, document.querySelector('[name="lastName"]')?.value)}
+            />
           </label>
 
           <label>
             Nume
-            <input name="lastName" defaultValue={editing.lastName} required />
+            <input
+              name="lastName"
+              defaultValue={editing.lastName}
+              required
+              onChange={(e) => updateEmailPreview(document.querySelector('[name="firstName"]')?.value, e.target.value)}
+            />
           </label>
 
           <label>
@@ -196,18 +237,29 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
               <div style={{ gridColumn: "span 2", borderTop: "1px solid #e5e7eb", paddingTop: 16, marginTop: 4 }}>
                 <p className="eyebrow" style={{ marginBottom: 12 }}>Cont aplicație (opțional)</p>
               </div>
-              <label style={{ gridColumn: "span 2" }}>
-                Email cont mobil / web
-                <input
-                  name="emailCont"
-                  type="email"
-                  placeholder="ex: ion.popescu@company.ro"
-                  autoComplete="off"
-                />
-              </label>
-              <p style={{ gridColumn: "span 2", fontSize: 12, color: "#9ca3af", margin: "-8px 0 0" }}>
-                Dacă completezi emailul, se va crea automat un cont cu parolă temporară.
-              </p>
+              <div style={{ gridColumn: "span 2" }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                  Email generat automat
+                </p>
+                {emailPreview ? (
+                  <div style={{
+                    background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6,
+                    padding: "8px 12px", fontFamily: "monospace", fontSize: 14, color: "#166534"
+                  }}>
+                    {emailPreview}
+                  </div>
+                ) : (
+                  <div style={{
+                    background: "#f9fafb", border: "1px dashed #d1d5db", borderRadius: 6,
+                    padding: "8px 12px", fontSize: 13, color: "#9ca3af"
+                  }}>
+                    Completează prenumele și numele pentru a genera emailul
+                  </div>
+                )}
+                <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 6 }}>
+                  Se va crea automat un cont cu această adresă și o parolă temporară.
+                </p>
+              </div>
             </>
           )}
 
