@@ -161,6 +161,7 @@ app.post("/api/mobile/login-secure", async (req, res) => {
 
   } catch (err) {
     console.error("❌ Eroare critică la login mobile:", err.message);
+    console.error("❌ Stack:", err.stack);  // ← adaugă
     res.status(500).json({ success: false, message: "Eroare internă de server la procesarea bazei de date." });
   }
 });
