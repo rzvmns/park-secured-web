@@ -67,6 +67,7 @@ app.post("/api/mobile/login-secure", async (req, res) => {
 
     const accountQuery = `
       SELECT a.account_id, a.email, a.password_hash, a.role, a.is_active, a.employee_id,
+             a.must_change_password,
             e.first_name, e.last_name, e.is_active as employee_active,
             e.access_start_time, e.access_end_time
       FROM accounts a
@@ -152,6 +153,7 @@ app.post("/api/mobile/login-secure", async (req, res) => {
       success: true,
       message: "Autentificare reușită.",
       accessSeed: noulSeedSesiune,
+      mustChangePassword: accountData.must_change_password ?? false,
       user: {
         name: `${accountData.first_name} ${accountData.last_name}`,
         role: accountData.role,
@@ -432,85 +434,50 @@ app.patch("/api/device-change-requests/:id/resolve", async (req, res) => {
   }
 });
 
-// API Mobile 
-app.get("/api/mobile/profile", async (req, res) => {
+// =========================================================================
+// SCHIMBARE PAROLĂ MOBILĂ (prima logare)
+// =========================================================================
+app.post("/api/mobile/change-password", async (req, res) => {
   try {
-    const { accessSeed } = req.query;
+    const { email, currentPassword, newPassword } = req.body;
 
-    if (!accessSeed) {
-      return res.status(400).json({ success: false, message: "accessSeed lipsă" });
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Toate câmpurile sunt obligatorii." });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: "Parola nouă trebuie să aibă minim 8 caractere." });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ success: false, message: "Parola nouă trebuie să fie diferită de cea actuală." });
     }
 
     const result = await pool.query(
-      `SELECT e.first_name, e.last_name, e.badge_code, 
-              e.access_start_time, e.access_end_time,
-              d.name AS division_name,
-              json_agg(json_build_object('name', e2.first_name || ' ' || e2.last_name)) AS colleagues
-       FROM smartphones s
-       INNER JOIN employees e ON e.employee_id = s.employee_id
-       INNER JOIN divisions d ON d.division_id = e.division_id
-       LEFT JOIN employees e2 ON e2.division_id = e.division_id AND e2.employee_id != e.employee_id
-       WHERE s.access_seed = $1
-       GROUP BY e.employee_id, d.name`,
-      [accessSeed]
+      `SELECT account_id, password_hash FROM accounts WHERE email = $1`,
+      [email]
     );
+    const account = result.rows[0];
 
-    const row = result.rows[0];
-    if (!row) {
-      return res.status(404).json({ success: false, message: "Sesiune invalidă" });
+    if (!account) {
+      return res.status(404).json({ success: false, message: "Contul nu a fost găsit." });
     }
 
-    return res.json({
-      success: true,
-      data: {
-        numeComplet: `${row.first_name} ${row.last_name}`,
-        legitimatie: row.badge_code || "-",
-        orarPermis: `${String(row.access_start_time).slice(0,5)} - ${String(row.access_end_time).slice(0,5)}`,
-        divizie: row.division_name,
-        colegi: row.colleagues?.filter(c => c.name?.trim()) || []
-      }
-    });
+    const matches = await bcrypt.compare(currentPassword, account.password_hash);
+    if (!matches) {
+      return res.status(401).json({ success: false, message: "Parola actuală este incorectă." });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      `UPDATE accounts SET password_hash = $1, must_change_password = false WHERE account_id = $2`,
+      [newHash, account.account_id]
+    );
+
+    return res.json({ success: true, message: "Parola a fost schimbată cu succes." });
   } catch (err) {
-    console.error("❌ Eroare profile:", err.message);
-    res.status(500).json({ success: false, message: "Eroare server" });
-  }
-});
-
-app.get("/api/mobile/my-events", async (req, res) => {
-  try {
-    const { accessSeed } = req.query;
-
-    if (!accessSeed) {
-      return res.status(400).json({ success: false, message: "accessSeed lipsă" });
-    }
-
-    const seedResult = await pool.query(
-      `SELECT e.employee_id FROM smartphones s
-       INNER JOIN employees e ON e.employee_id = s.employee_id
-       WHERE s.access_seed = $1`,
-      [accessSeed]
-    );
-
-    if (seedResult.rowCount === 0) {
-      return res.status(404).json({ success: false, message: "Sesiune invalidă" });
-    }
-
-    const employeeId = seedResult.rows[0].employee_id;
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-    const events = await pool.query(
-      `SELECT event_id, event_type, event_status, event_time, gate_code, notes
-       FROM access_events
-       WHERE employee_id = $1 AND event_time >= $2
-       ORDER BY event_time DESC`,
-      [employeeId, startOfMonth]
-    );
-
-    return res.json({ success: true, data: events.rows });
-  } catch (err) {
-    console.error("❌ Eroare my-events:", err.message);
-    res.status(500).json({ success: false, message: "Eroare server" });
+    console.error("❌ Eroare schimbare parolă:", err.message);
+    res.status(500).json({ success: false, message: "Eroare internă de server." });
   }
 });
 
