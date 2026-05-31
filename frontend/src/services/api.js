@@ -146,6 +146,8 @@ function mapCloudUser(user) {
     email: user.email,
     name: user.email?.split("@")[0] || "Utilizator ParkSecured",
     role: user.role,
+    divisionId: user.divisionId ? Number(user.divisionId) : null,
+    employeeId: user.employeeId || null,
     department: user.divisionId ? `Divizia ${user.divisionId}` : "Global",
     mustChangePassword: user.mustChangePassword ?? false,
   };

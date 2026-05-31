@@ -22,7 +22,7 @@ export default function Reports() {
   }
 
   const handleExportCSV = () => {
-    window.location.href = "http://localhost:5001/api/export-csv";
+    window.location.href = "https://park-secure-backend.onrender.com/api/export-csv";
   };
 
   if (!reports) {

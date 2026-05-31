@@ -62,6 +62,11 @@ function AccessDetailsCard({ employee, authorized, message }) {
 }
 
 function TimeAlertModal({ alert, onDismiss, onManualDeny }) {
+  useEffect(() => {
+    if (!alert) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [alert]);
 
   if (!alert) return null;
 
