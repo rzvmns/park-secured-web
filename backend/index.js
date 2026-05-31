@@ -67,7 +67,8 @@ app.post("/api/mobile/login-secure", async (req, res) => {
 
     const accountQuery = `
       SELECT a.account_id, a.email, a.password_hash, a.role, a.is_active, a.employee_id,
-             e.first_name, e.last_name, e.is_active as employee_active
+            e.first_name, e.last_name, e.is_active as employee_active,
+            e.access_start_time, e.access_end_time
       FROM accounts a
       INNER JOIN employees e ON a.employee_id = e.employee_id
       WHERE a.email = $1
