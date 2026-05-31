@@ -160,10 +160,7 @@ app.post("/api/validate-access", async (req, res) => {
     if (!deviceData.is_active) {
       return res.status(403).json({ authorized: false, message: "Accesul fizic pentru acest angajat este suspendat." });
     }
-    console.log("access_start_time:", deviceData.access_start_time);
-    console.log("access_end_time:", deviceData.access_end_time);
-    console.log("server time now:", new Date().toISOString());
-    console.log("isInTimeWindow:", isInTimeWindow);
+
     // Verificare interval orar
     const isInTimeWindow = (() => {
       const { access_start_time: start, access_end_time: end } = deviceData;
@@ -207,11 +204,16 @@ app.post("/api/validate-access", async (req, res) => {
       setGateTemporarilyOpen();
     }
 
+    console.log("access_start_time:", deviceData.access_start_time);
+    console.log("access_end_time:", deviceData.access_end_time);
+    console.log("server time now:", new Date().toISOString());
+    console.log("isInTimeWindow:", isInTimeWindow);
+
     return res.json({
       authorized: true,
       name: `${deviceData.first_name} ${deviceData.last_name}`
     });
-
+    
   } catch (err) {
     console.error("❌ Eroare la validarea accesului:", err.message);
     res.status(500).json({ authorized: false, message: "Eroare la verificarea drepturilor de acces." });
