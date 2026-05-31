@@ -76,7 +76,7 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const token = getStoredToken();
   const headers = {
     "Content-Type": "application/json",
