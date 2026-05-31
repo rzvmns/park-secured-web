@@ -245,6 +245,10 @@ export default function Dashboard() {
   const gateAnimatingRef = useRef(false);
   const [gateClosing, setGateClosing] = useState(false);
 
+  // Refs to hold current values inside the polling closure without stale captures
+  const timeAlertRef = useRef(null);
+  const prevFirstLogIdRef = useRef(null);
+
   const refreshDashboard = () => {
     getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
     Promise.all([getAccessLogs(), getEmployees()]).then(([newLogs, newEmployees]) => {
@@ -253,21 +257,27 @@ export default function Dashboard() {
 
       const pendingLog = newLogs.find((log) => log.status === "Pending");
       if (pendingLog) {
-        if (pendingLog.id !== timeAlert?.eventId) {
+        if (pendingLog.id !== timeAlertRef.current?.eventId) {
           const emp = newEmployees.find((e) => e.employeeId === pendingLog.employeeId);
-          setTimeAlert({
+          const alert = {
             eventId: pendingLog.id,
             employeeName: pendingLog.employeeName,
             department: pendingLog.department,
             carPlate: pendingLog.carPlate,
             schedule: emp?.schedule || pendingLog.schedule || null,
-          });
+          };
+          timeAlertRef.current = alert;
+          setTimeAlert(alert);
         }
       } else {
-        setTimeAlert(null);
+        if (timeAlertRef.current !== null) {
+          timeAlertRef.current = null;
+          setTimeAlert(null);
+        }
       }
 
-      if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogId) {
+      if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogIdRef.current) {
+        prevFirstLogIdRef.current = newLogs[0].id;
         setPrevFirstLogId(newLogs[0].id);
         const latest = newLogs[0];
         setLastAccess({
@@ -361,6 +371,7 @@ export default function Dashboard() {
     if (!alert?.eventId) { setTimeAlert(null); return; }
     try {
       const result = await resolveAccessEvent(alert.eventId, "DENIED");
+      timeAlertRef.current = null;
       setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
@@ -378,6 +389,7 @@ export default function Dashboard() {
     try {
       await resolveAccessEvent(alert.eventId, "ALLOWED");
       simulateGate(true);
+      timeAlertRef.current = null;
       setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
