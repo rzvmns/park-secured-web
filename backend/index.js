@@ -111,7 +111,9 @@ app.post("/api/mobile/login-secure", async (req, res) => {
       accessSeed: noulSeedSesiune,
       user: {
         name: `${accountData.first_name} ${accountData.last_name}`,
-        role: accountData.role
+        role: accountData.role,
+        accessStartTime: accountData.access_start_time, 
+        accessEndTime: accountData.access_end_time, 
       }
     });
 

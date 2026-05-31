@@ -198,7 +198,6 @@ function toCloudEmployeePayload(employee) {
 }
 
 function mapCloudEvent(event, employees = []) {
-  console.log("event raw:", event);  // ← adaugă asta
   const employee = employees.find((item) => item.employeeId === event.employeeId);
 
   return {
@@ -293,7 +292,6 @@ export async function getAccessLogs() {
 
     return events.map((event) => mapCloudEvent(event, employees));
   } catch (error) {
-    console.error("getAccessLogs failed, using fallback:", error); // ← adaugă
     await wait();
     return [...fallbackAccessLogs].sort(
       (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
