@@ -317,15 +317,19 @@ export default function Dashboard() {
           </div>
 
           <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-            <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
-              Permite Intrare
-            </button>
-            <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" onClick={() => handleValidateAccess("1234", "OUT")}>
-              Permite Ieșire
-            </button>
-            <button className="danger-button" type="button" onClick={() => handleValidateAccess("INVALID", "IN")}>
-              Interzice manual
-            </button>
+            {["admin", "operator"].includes(user?.role) && (
+              <>
+                <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
+                  Permite Intrare
+                </button>
+                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" onClick={() => handleValidateAccess("1234", "OUT")}>
+                  Permite Ieșire
+                </button>
+                <button className="danger-button" type="button" onClick={() => handleValidateAccess("INVALID", "IN")}>
+                  Interzice manual
+                </button>
+              </>
+            )}
           </div>
 
           <AccessDetailsCard

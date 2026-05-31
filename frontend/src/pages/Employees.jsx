@@ -43,12 +43,20 @@ function generateEmail(firstName, lastName, existingEmails = []) {
   return `${base}${i}@parksecure.local`;
 }
 
+const AVAILABLE_ROLES = [
+  { value: "operator", label: "Operator" },
+  { value: "viewer", label: "Vizualizator" },
+  { value: "division_manager", label: "Manager Divizie" },
+  { value: "hr", label: "HR" },
+];
+
 function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdPassword, setCreatedPassword] = useState(null);
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
+  const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
   const isNew = !editing?.employeeId && !editing?.id;
 
   useEffect(() => {
@@ -101,7 +109,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
             body: JSON.stringify({
               email: emailCont,
               password: tempPassword,
-              role: "operator",
+              role: selectedAccountRole,
               divisionId: divisionIdFinal,
               employeeId: saved.employeeId || saved.id,
               isActive: true,
@@ -237,6 +245,19 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
               <div style={{ gridColumn: "span 2", borderTop: "1px solid #e5e7eb", paddingTop: 16, marginTop: 4 }}>
                 <p className="eyebrow" style={{ marginBottom: 12 }}>Cont aplicație (opțional)</p>
               </div>
+              <label style={{ gridColumn: "span 2" }}>
+                Rol cont
+                <select
+                  value={selectedAccountRole}
+                  onChange={(e) => setSelectedAccountRole(e.target.value)}
+                >
+                  {AVAILABLE_ROLES
+                    .filter((r) => userRole === "admin" || r.value !== "hr")
+                    .map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                </select>
+              </label>
               <div style={{ gridColumn: "span 2" }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
                   Email generat automat
