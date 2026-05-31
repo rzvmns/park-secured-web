@@ -228,16 +228,18 @@ export default function Dashboard() {
     }
 
     try {
-      await resolveAccessEvent(alert.eventId, "DENIED");
-      setTimeAlert(null); // închidem DOAR dacă a reușit
+      const result = await resolveAccessEvent(alert.eventId, "DENIED");
+      console.log("resolve success:", result);
+      setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
         authorized: false,
         message: "Acces interzis manual de portar.",
       });
     } catch (err) {
-      console.error("Eroare la refuzare:", err);
-      // opțional: afișează un toast de eroare
+      console.error("resolve error status:", err.status);
+      console.error("resolve error message:", err.message);
+      console.error("resolve error payload:", err.payload);
     }
   };
 
