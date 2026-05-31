@@ -26,8 +26,8 @@ function GateAnimation({ state }) {
   return (
     <div style={{
       position: "relative",
-      height: "180px",
-      margin: "16px 0",
+      height: "200px",
+      margin: "16px -8px",
       borderRadius: "10px",
       background: bgColor,
       border: `1.5px solid ${isOpen ? "#86efac" : isMoving ? "#fcd34d" : "#fca5a5"}`,
@@ -64,7 +64,7 @@ function GateAnimation({ state }) {
         bottom: "38px",
         left: "52px",
         width: "22px",
-        height: "80px",
+        height: "52px",
         background: "linear-gradient(180deg, #374151 0%, #1f2937 100%)",
         borderRadius: "4px 4px 0 0",
         boxShadow: "inset -2px 0 4px rgba(0,0,0,0.3), 2px 0 6px rgba(0,0,0,0.15)",
@@ -87,7 +87,7 @@ function GateAnimation({ state }) {
       {/* Pivot point */}
       <div style={{
         position: "absolute",
-        bottom: "116px",
+        bottom: "88px",
         left: "56px",
         width: "14px",
         height: "14px",
@@ -101,9 +101,9 @@ function GateAnimation({ state }) {
       {/* Arm */}
       <div style={{
         position: "absolute",
-        bottom: "122px",
+        bottom: "94px",
         left: "63px",
-        width: "220px",
+        width: "300px",
         height: "14px",
         transformOrigin: "0% 50%",
         transform: `rotate(${armAngle}deg)`,
@@ -130,7 +130,7 @@ function GateAnimation({ state }) {
       {/* Counterweight */}
       <div style={{
         position: "absolute",
-        bottom: "122px",
+        bottom: "94px",
         left: "37px",
         width: "26px",
         height: "14px",
