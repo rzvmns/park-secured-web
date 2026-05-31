@@ -142,11 +142,12 @@ function generatedCnp(employee) {
 
 function mapCloudUser(user) {
   return {
-    id: user.userId,
+    id: user.userId || user.accountId,
     email: user.email,
     name: user.email?.split("@")[0] || "Utilizator ParkSecured",
     role: user.role,
     department: user.divisionId ? `Divizia ${user.divisionId}` : "Global",
+    mustChangePassword: user.mustChangePassword ?? false,
   };
 }
 
@@ -251,6 +252,13 @@ export async function loginRequest({ email, password }) {
   return session;
 }
 
+export async function changePassword({ currentPassword, newPassword }) {
+  return request("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
 export async function getEmployees() {
   try {
     const employees = await request("/employees");
@@ -301,7 +309,7 @@ export async function getAccessLogs() {
 
 export async function getGateStatus() {
   try {
-    const response = await fetch(`${WEB_API_BASE_URL}/gate/status`);
+    const response = await fetch(`${WEB_API_BASE_URL}/hardware/gate-status`);
     const result = await response.json();
     return {
       state: result.state || "Inchisa",
