@@ -148,7 +148,12 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
     return (
       <div style={overlayStyle}>
         <div style={{ ...modalStyle, maxWidth: 420, textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <circle cx="26" cy="26" r="24" fill="#0f8a5f" opacity="0.12" stroke="#0f8a5f" strokeWidth="2"/>
+              <path d="M16 26.5l8 8 13-15" stroke="#0f8a5f" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
           <h2 style={{ margin: "0 0 8px", color: "#0f8a5f" }}>Angajat și cont create!</h2>
           <p style={{ color: "#66758a", marginBottom: 20 }}>
             Comunică angajatului parola temporară de mai jos. Aceasta nu va mai fi afișată.

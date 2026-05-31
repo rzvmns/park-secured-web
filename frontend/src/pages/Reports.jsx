@@ -38,8 +38,12 @@ export default function Reports() {
           <p className="eyebrow">Rapoarte globale</p>
           <h2>Prezenta si activitate pe departamente</h2>
         </div>
-        <button className="ghost-button" type="button" onClick={handleExportCSV}>
-          📥 Export CSV Audit
+        <button className="ghost-button" type="button" onClick={handleExportCSV} style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M3 13h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+          Export CSV Audit
         </button>
       </section>
 

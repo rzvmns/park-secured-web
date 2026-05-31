@@ -166,7 +166,7 @@ function GateAnimation({ state }) {
         color: isOpen ? "#16a34a" : isMoving ? "#d97706" : "#dc2626",
         transition: "color 0.4s",
       }}>
-        {isOpen ? "▲ RIDICATĂ" : isMoving ? "⏳ " + state.toUpperCase() : "▼ COBORÂTĂ"}
+        {isOpen ? "▲ RIDICATĂ" : isMoving ? state.toUpperCase() : "▼ COBORÂTĂ"}
       </div>
     </div>
   );
