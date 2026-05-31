@@ -452,18 +452,21 @@ export async function validateAccess({
 
 export async function getDeviceChangeRequests() {
   try {
-    const result = await request("/device-change-requests");
-    return result.data ?? result;
+    const response = await fetch(`${WEB_API_BASE_URL}/api/device-change-requests`);
+    const result = await response.json();
+    return result.data || result;
   } catch {
     return [];
   }
 }
 
 export async function resolveDeviceChangeRequest(requestId, status) {
-  return request(`/device-change-requests/${requestId}/resolve`, {
+  const response = await fetch(`${WEB_API_BASE_URL}/api/device-change-requests/${requestId}/resolve`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
   });
+  return response.json();
 }
 
 export async function resolveAccessEvent(eventId, resolution) {
