@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AccessLogTable from "../components/AccessLogTable.jsx";
 import GateStatusCard from "../components/GateStatusCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -156,9 +156,10 @@ export default function Dashboard() {
   const [prevFirstLogId, setPrevFirstLogId] = useState(null);
   const [timeAlert, setTimeAlert] = useState(null);
   const [gateAnimating, setGateAnimating] = useState(false);
+  const gateAnimatingRef = useRef(false);
 
   const refreshDashboard = () => {
-    getGateStatus().then(setGateStatus).catch(console.error);
+    getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
     getAccessLogs().then((newLogs) => {
       setLogs(newLogs);
 
@@ -216,6 +217,7 @@ export default function Dashboard() {
   const simulateGate = (authorized) => {
     if (!authorized) return;
     setGateAnimating(true);
+    gateAnimatingRef.current = true;
     setGateStatus((prev) => ({
       ...prev,
       state: "In curs de deschidere",
@@ -243,6 +245,7 @@ export default function Dashboard() {
             activeLed: "Rosu",
           }));
           setGateAnimating(false);
+          gateAnimatingRef.current = false;
         }, 2000);
       }, 20000);
     }, 1500);
