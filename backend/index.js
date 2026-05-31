@@ -88,7 +88,11 @@ app.post("/api/mobile/login-secure", async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
     }
-        // Verifică dacă există deja un smartphone înregistrat pentru acest angajat
+    const realEmployeeId = accountData.employee_id;
+
+    const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
+
+            // Verifică dacă există deja un smartphone înregistrat pentru acest angajat
     const existingDevice = await pool.query(
       `SELECT smartphone_id, device_identifier FROM smartphones WHERE employee_id = $1`,
       [realEmployeeId]
@@ -130,9 +134,6 @@ app.post("/api/mobile/login-secure", async (req, res) => {
       VALUES ($1, $2, $3, $4, true)`,
       [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]
     );
-    const realEmployeeId = accountData.employee_id;
-
-    const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
 
     await pool.query(
       `DELETE FROM smartphones WHERE employee_id = $1 OR device_identifier = $2`,
