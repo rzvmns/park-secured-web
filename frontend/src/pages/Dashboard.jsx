@@ -155,6 +155,7 @@ export default function Dashboard() {
   const [lastAccess, setLastAccess] = useState(null);
   const [prevFirstLogId, setPrevFirstLogId] = useState(null);
   const [timeAlert, setTimeAlert] = useState(null);
+  const [gateAnimating, setGateAnimating] = useState(false);
 
   const refreshDashboard = () => {
     getGateStatus().then(setGateStatus).catch(console.error);
@@ -214,6 +215,7 @@ export default function Dashboard() {
 
   const simulateGate = (authorized) => {
     if (!authorized) return;
+    setGateAnimating(true);
     setGateStatus((prev) => ({
       ...prev,
       state: "In curs de deschidere",
@@ -240,9 +242,10 @@ export default function Dashboard() {
             state: "Inchisa",
             activeLed: "Rosu",
           }));
-        }, 1500);
-      }, 2500);
-    }, 1200);
+          setGateAnimating(false);
+        }, 2000);
+      }, 20000);
+    }, 1500);
   };
 
   const handleValidateAccess = async (accessCode, direction = "IN") => {
@@ -355,19 +358,20 @@ export default function Dashboard() {
               className="ghost-button"
               type="button"
               onClick={() => simulateGate(true)}
+              disabled={gateAnimating}
               style={{ fontSize: "12px", color: "#6b7280" }}
             >
               🎬 Test animație
             </button>
             {["admin", "operator"].includes(user?.role) && (
               <>
-                <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
+                <button className="primary-button" type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("1234", "IN")}>
                   Permite Intrare
                 </button>
-                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" onClick={() => handleValidateAccess("1234", "OUT")}>
+                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("1234", "OUT")}>
                   Permite Ieșire
                 </button>
-                <button className="danger-button" type="button" onClick={() => handleValidateAccess("INVALID", "IN")}>
+                <button className="danger-button" type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("INVALID", "IN")}>
                   Interzice manual
                 </button>
               </>
