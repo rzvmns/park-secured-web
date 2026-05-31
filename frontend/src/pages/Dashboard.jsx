@@ -212,6 +212,39 @@ export default function Dashboard() {
     );
   }
 
+  const simulateGate = (authorized) => {
+    if (!authorized) return;
+    setGateStatus((prev) => ({
+      ...prev,
+      state: "In curs de deschidere",
+      activeLed: "Galben",
+      barrier: "Simulat",
+      esp32: "Simulat",
+      cloud: "OK",
+    }));
+    setTimeout(() => {
+      setGateStatus((prev) => ({
+        ...prev,
+        state: "Deschisa",
+        activeLed: "Verde",
+      }));
+      setTimeout(() => {
+        setGateStatus((prev) => ({
+          ...prev,
+          state: "In curs de inchidere",
+          activeLed: "Galben",
+        }));
+        setTimeout(() => {
+          setGateStatus((prev) => ({
+            ...prev,
+            state: "Inchisa",
+            activeLed: "Rosu",
+          }));
+        }, 1500);
+      }, 2500);
+    }, 1200);
+  };
+
   const handleValidateAccess = async (accessCode, direction = "IN") => {
     try {
       const result = await validateAccess({ accessCode, direction, method: "Portar" });
@@ -219,6 +252,7 @@ export default function Dashboard() {
         employee: result.employee,
         authorized: result.authorized,
       });
+      simulateGate(result.authorized);
       refreshDashboard();
     } catch (error) {
       setLastAccess({ employee: null, authorized: false, message: "Eroare de comunicație cu backend-ul." });
