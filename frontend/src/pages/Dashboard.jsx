@@ -160,6 +160,12 @@ export default function Dashboard() {
     getGateStatus().then(setGateStatus).catch(console.error);
     getAccessLogs().then((newLogs) => {
       setLogs(newLogs);
+
+      const pendingLog = newLogs.find((log) => log.status === "Pending");
+      if (!pendingLog) {
+        setTimeAlert(null); // ← dacă nu mai e PENDING, închide modalul
+      }
+      
       if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogId) {
         setPrevFirstLogId(newLogs[0].id);
         const latest = newLogs[0];
