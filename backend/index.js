@@ -160,7 +160,10 @@ app.post("/api/validate-access", async (req, res) => {
     if (!deviceData.is_active) {
       return res.status(403).json({ authorized: false, message: "Accesul fizic pentru acest angajat este suspendat." });
     }
-
+    console.log("access_start_time:", deviceData.access_start_time);
+    console.log("access_end_time:", deviceData.access_end_time);
+    console.log("server time now:", new Date().toISOString());
+    console.log("isInTimeWindow:", isInTimeWindow);
     // Verificare interval orar
     const isInTimeWindow = (() => {
       const { access_start_time: start, access_end_time: end } = deviceData;
