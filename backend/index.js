@@ -90,38 +90,20 @@ app.post("/api/mobile/login-secure", async (req, res) => {
 
     const realEmployeeId = accountData.employee_id;
 
-    const existingDeviceQuery = `SELECT device_identifier FROM smartphones WHERE employee_id = $1`;
-    const existingDeviceResult = await pool.query(existingDeviceQuery, [realEmployeeId]);
-    
     const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
 
-    if (existingDeviceResult.rows.length > 0) {
-      const currentHardwareId = existingDeviceResult.rows[0].device_identifier;
+    await pool.query(
+      `DELETE FROM smartphones WHERE employee_id = $1 OR device_identifier = $2`,
+      [realEmployeeId, deviceIdentifier]
+    );
 
-      if (currentHardwareId !== deviceIdentifier) {
-        console.warn(`[⚠️ SECURITATE] Tentativă de clonare cont pentru ${email}. Hardware blocat.`);
-        return res.status(403).json({ 
-          success: false, 
-          message: "Dispozitiv neautorizat! Acest cont este deja asociat unui alt smartphone. Contactați departamentul HR pentru resetare." 
-        });
-      }
+    await pool.query(
+      `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+       VALUES ($1, $2, $3, $4, true)`,
+      [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]
+    );
 
-      const updateQuery = `
-        UPDATE smartphones 
-        SET access_seed = $1, platform = $2, is_trusted = true
-        WHERE employee_id = $3
-      `;
-      await pool.query(updateQuery, [noulSeedSesiune, platform || 'iOS', realEmployeeId]);
-      console.log(`[🔄 SESSION ROTATED] Sesiune actualizată pe același dispozitiv pentru: ${accountData.first_name}`);
-
-    } else {
-      const insertQuery = `
-        INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
-        VALUES ($1, $2, $3, $4, true)
-      `;
-      await pool.query(insertQuery, [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]);
-      console.log(`[📱 FIRST LOGIN] Dispozitivul a fost asociat unic cu succes pentru: ${accountData.first_name}`);
-    }
+    console.log(`[📱 LOGIN] Dispozitiv asociat pentru: ${accountData.first_name} ${accountData.last_name}`);
 
     return res.json({
       success: true,
@@ -135,7 +117,6 @@ app.post("/api/mobile/login-secure", async (req, res) => {
 
   } catch (err) {
     console.error("❌ Eroare critică la login mobile:", err.message);
-    console.error("❌ Stack:", err.stack);  // adaugă asta
     res.status(500).json({ success: false, message: "Eroare internă de server la procesarea bazei de date." });
   }
 });
