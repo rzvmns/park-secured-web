@@ -4,7 +4,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getEmployees, saveEmployee, request } from "../services/api.js";
 
 const emptyEmployee = {
-  name: "",
+  firstName: "",
+  lastName: "",
   cnp: "",
   divisionId: 1,
   role: "",
@@ -43,7 +44,9 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
 
     const employee = {
       ...editing,
-      name: form.get("name"),
+      firstName: form.get("firstName"),
+      lastName: form.get("lastName"),
+      name: `${form.get("firstName")} ${form.get("lastName")}`.trim(),
       cnp: form.get("cnp"),
       divisionId: divisionIdFinal,
       badgeCode: form.get("badgeCode"),
@@ -137,8 +140,13 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
 
         <form className="form-grid" onSubmit={handleSubmit}>
           <label>
-            Nume complet
-            <input name="name" defaultValue={editing.name} required />
+            Prenume
+            <input name="firstName" defaultValue={editing.firstName} required />
+          </label>
+
+          <label>
+            Nume
+            <input name="lastName" defaultValue={editing.lastName} required />
           </label>
 
           <label>
