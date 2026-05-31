@@ -204,11 +204,6 @@ app.post("/api/validate-access", async (req, res) => {
       setGateTemporarilyOpen();
     }
 
-    console.log("access_start_time:", deviceData.access_start_time);
-    console.log("access_end_time:", deviceData.access_end_time);
-    console.log("server time now:", new Date().toISOString());
-    console.log("isInTimeWindow:", isInTimeWindow);
-
     return res.json({
       authorized: true,
       name: `${deviceData.first_name} ${deviceData.last_name}`
