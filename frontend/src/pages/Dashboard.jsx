@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import AccessLogTable from "../components/AccessLogTable.jsx";
 import GateStatusCard from "../components/GateStatusCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -60,6 +60,92 @@ function AccessDetailsCard({ employee, authorized, message }) {
   );
 }
 
+function TimeAlertModal({ alert, onDismiss, onManualDeny }) {
+
+  if (!alert) return null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.55)",
+      animation: "fadeIn 0.2s ease",
+    }}>
+      <div style={{
+        background: "#fff",
+        borderRadius: "12px",
+        padding: "32px 28px",
+        maxWidth: "440px",
+        width: "90%",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+        border: "3px solid #c2413a",
+        animation: "pulse-border 1s ease infinite",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: "48px", marginBottom: "12px" }}>⚠️</div>
+        <h2 style={{ margin: "0 0 8px", color: "#c2413a", fontSize: "20px" }}>
+          Acces în afara intervalului orar!
+        </h2>
+        <p style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: "700", color: "#18212f" }}>
+          {alert.employeeName}
+        </p>
+        <p style={{ margin: "0 0 4px", fontSize: "14px", color: "#66758a" }}>
+          {alert.department}
+        </p>
+        <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#b7791f", fontWeight: "600" }}>
+          🕐 Interval permis: {alert.schedule || "nespecificat"}
+        </p>
+        {alert.carPlate && alert.carPlate !== "-" && (
+          <p style={{ margin: "0 0 16px", fontSize: "13px", fontWeight: "600", color: "#18212f" }}>
+            🚘 {alert.carPlate}
+          </p>
+        )}
+        <p style={{ margin: "0 0 24px", fontSize: "13px", color: "#66758a" }}>
+          Portarul poate permite accesul excepțional sau îl poate interzice manual.
+        </p>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+          <button
+            onClick={onManualDeny}
+            style={{
+              padding: "10px 20px", borderRadius: "8px", border: "none",
+              background: "#c2413a", color: "#fff", fontWeight: "700",
+              fontSize: "14px", cursor: "pointer",
+            }}
+          >
+            🚫 Interzice manual
+          </button>
+          <button
+            onClick={onDismiss}
+            style={{
+              padding: "10px 20px", borderRadius: "8px", border: "2px solid #dbe3ec",
+              background: "#fff", color: "#18212f", fontWeight: "600",
+              fontSize: "14px", cursor: "pointer",
+            }}
+          >
+            Permite excepțional
+          </button>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse-border {
+          0%, 100% { border-color: #c2413a; box-shadow: 0 0 0 0 rgba(194,65,58,0.4); }
+          50% { border-color: #e05d56; box-shadow: 0 0 0 8px rgba(194,65,58,0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; } to { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function isOutsideTimeWindow(note) {
+  if (!note) return false;
+  const n = note.toLowerCase();
+  return n.includes("outside allowed interval") || n.includes("interval orar") || n.includes("afara");
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [gateStatus, setGateStatus] = useState(null);
@@ -67,12 +153,12 @@ export default function Dashboard() {
   const [employees, setEmployees] = useState([]);
   const [lastAccess, setLastAccess] = useState(null);
   const [prevFirstLogId, setPrevFirstLogId] = useState(null);
+  const [timeAlert, setTimeAlert] = useState(null);
 
   const refreshDashboard = () => {
     getGateStatus().then(setGateStatus).catch(console.error);
     getAccessLogs().then((newLogs) => {
       setLogs(newLogs);
-      // Dacă apare un log nou față de ultima verificare, îl afișăm în cardul mare
       if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogId) {
         setPrevFirstLogId(newLogs[0].id);
         const latest = newLogs[0];
@@ -85,6 +171,19 @@ export default function Dashboard() {
           },
           authorized: latest.status === "Valid",
         });
+
+        // Detectăm dacă e refuz din cauza intervalului orar
+        if (latest.status === "Refuzat" && isOutsideTimeWindow(latest.note)) {
+          // Găsim angajatul în listă ca să avem orarul
+          const emp = employees.find((e) => e.employeeId === latest.employeeId);
+          setTimeAlert({
+            logId: latest.id,
+            employeeName: latest.employeeName,
+            department: latest.department,
+            carPlate: latest.carPlate,
+            schedule: emp?.schedule || null,
+          });
+        }
       }
     }).catch(console.error);
     getEmployees().then(setEmployees).catch(console.error);
@@ -121,10 +220,31 @@ export default function Dashboard() {
     }
   };
 
+  const handleManualDeny = () => {
+    setTimeAlert(null);
+    setLastAccess({
+      employee: timeAlert
+        ? { name: timeAlert.employeeName, department: timeAlert.department, carPlate: timeAlert.carPlate }
+        : null,
+      authorized: false,
+      message: "Acces interzis manual de portar.",
+    });
+  };
+
+  const handleDismissAlert = () => {
+    setTimeAlert(null);
+  };
+
   const latestLog = logs[0];
 
   return (
     <div className="page-grid">
+      <TimeAlertModal
+        alert={timeAlert}
+        onDismiss={handleDismissAlert}
+        onManualDeny={handleManualDeny}
+      />
+
       <section className="hero-band">
         <div>
           <p className="eyebrow">Dashboard poarta ({user?.role || "Fără Rol"})</p>
