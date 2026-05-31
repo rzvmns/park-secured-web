@@ -136,17 +136,6 @@ app.post("/api/mobile/login-secure", async (req, res) => {
       [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]
     );
 
-    await pool.query(
-      `DELETE FROM smartphones WHERE employee_id = $1 OR device_identifier = $2`,
-      [realEmployeeId, deviceIdentifier]
-    );
-
-    await pool.query(
-      `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
-       VALUES ($1, $2, $3, $4, true)`,
-      [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]
-    );
-
     console.log(`[📱 LOGIN] Dispozitiv asociat pentru: ${accountData.first_name} ${accountData.last_name}`);
 
     return res.json({
