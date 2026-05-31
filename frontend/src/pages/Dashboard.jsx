@@ -161,19 +161,20 @@ export default function Dashboard() {
 
   const refreshDashboard = () => {
     getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
-    getAccessLogs().then((newLogs) => {
+    Promise.all([getAccessLogs(), getEmployees()]).then(([newLogs, newEmployees]) => {
       setLogs(newLogs);
+      setEmployees(newEmployees);
 
       const pendingLog = newLogs.find((log) => log.status === "Pending");
       if (pendingLog) {
         if (pendingLog.id !== timeAlert?.eventId) {
-          const emp = employees.find((e) => e.employeeId === pendingLog.employeeId);
+          const emp = newEmployees.find((e) => e.employeeId === pendingLog.employeeId);
           setTimeAlert({
             eventId: pendingLog.id,
             employeeName: pendingLog.employeeName,
             department: pendingLog.department,
             carPlate: pendingLog.carPlate,
-            schedule: emp?.schedule || null,
+            schedule: emp?.schedule || pendingLog.schedule || null,
           });
         }
       } else {
@@ -193,8 +194,7 @@ export default function Dashboard() {
           authorized: latest.status === "Valid",
         });
       }
-  }).catch(console.error);
-    getEmployees().then(setEmployees).catch(console.error);
+    }).catch(console.error);
   };
 
   useEffect(() => {
