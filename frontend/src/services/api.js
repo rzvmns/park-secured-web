@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud.onrender.com/api";
+const WEB_API_BASE_URL = import.meta.env.VITE_WEB_API_BASE_URL || "https://park-secured-backend.onrender.com/api";
 const TOKEN_KEY = "parksecured_token";
 const USER_KEY = "parksecured_user";
 
@@ -300,16 +301,25 @@ export async function getAccessLogs() {
 
 export async function getGateStatus() {
   try {
-    await request("/health");
-
+    const response = await fetch(`${WEB_API_BASE_URL}/api/gate/status`);
+    const result = await response.json();
     return {
-      ...fallbackGateStatus,
+      state: result.state || "Inchisa",
+      activeLed: result.activeLed || "Galben",
+      barrier: "Liberă",
+      esp32: "Conectat",
       cloud: "Sincronizat",
       lastSync: new Date().toISOString(),
     };
   } catch (error) {
-    await wait(120);
-    return { ...fallbackGateStatus, cloud: "Offline" };
+    return {
+      state: "Inchisa",
+      activeLed: "Galben",
+      barrier: "Liberă",
+      esp32: "Deconectat",
+      cloud: "Offline",
+      lastSync: new Date().toISOString(),
+    };
   }
 }
 
