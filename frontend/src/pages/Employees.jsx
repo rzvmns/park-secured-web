@@ -219,7 +219,16 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
 
           <label>
             Orar acces
-            <input name="schedule" defaultValue={editing.schedule} placeholder="08:00 - 17:00" required />
+            <select
+              name="schedule"
+              defaultValue={editing.schedule || "08:00 - 17:00"}
+            >
+              <option value="06:00 - 14:00">06:00 - 14:00 (Tură 1)</option>
+              <option value="08:00 - 17:00">08:00 - 17:00 (Program normal)</option>
+              <option value="14:00 - 22:00">14:00 - 22:00 (Tură 2)</option>
+              <option value="22:00 - 06:00">22:00 - 06:00 (Tură noapte)</option>
+              <option value="00:00 - 23:59">00:00 - 23:59 (Acces nelimitat)</option>
+            </select>
           </label>
 
           <label>
@@ -332,7 +341,7 @@ export default function Employees() {
   const filteredEmployees = useMemo(() => {
     const value = query.toLowerCase();
     return employees.filter((employee) => {
-      const areDreptulPeDivizie = user?.role === "admin" || user?.role === "hr" || employee.divisionId === user?.divisionId;
+      const areDreptulPeDivizie = user?.role === "admin" || user?.role === "hr" || Number(employee.divisionId) === Number(user?.divisionId);
       const matchesQuery = [employee.name, employee.department, employee.role, employee.carPlate]
         .join(" ").toLowerCase().includes(value);
       return areDreptulPeDivizie && matchesQuery;
@@ -356,7 +365,7 @@ export default function Employees() {
           <p className="eyebrow">Modul Administrare ({user?.role || "Fără Rol"})</p>
           <h2>Angajați și drepturi de acces</h2>
         </div>
-        {user?.role !== "operator" && (
+        {["admin", "hr"].includes(user?.role) && (
           <button className="primary-button" type="button" onClick={() => setEditing(emptyEmployee)}>
             Adaugă angajat
           </button>
@@ -376,7 +385,7 @@ export default function Employees() {
         </div>
         <EmployeeTable
           employees={filteredEmployees}
-          onEdit={user?.role !== "operator" ? setEditing : undefined}
+          onEdit={["admin", "hr"].includes(user?.role) ? setEditing : undefined}
         />
       </section>
 
