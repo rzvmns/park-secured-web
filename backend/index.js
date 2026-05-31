@@ -317,6 +317,7 @@ app.get("/api/hardware/gate-status", (req, res) => {
   });
 });
 
+
 // 2. ESP32 anunță serverul când starea fizică s-a schimbat (Senzori / Limitatori cursă / Bariere IR)
 app.post("/api/hardware/update-status", async (req, res) => {
   try {
@@ -428,6 +429,88 @@ app.patch("/api/device-change-requests/:id/resolve", async (req, res) => {
     res.json({ success: true, message: `Cerere ${status}.` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API Mobile 
+app.get("/api/mobile/profile", async (req, res) => {
+  try {
+    const { accessSeed } = req.query;
+
+    if (!accessSeed) {
+      return res.status(400).json({ success: false, message: "accessSeed lipsă" });
+    }
+
+    const result = await pool.query(
+      `SELECT e.first_name, e.last_name, e.badge_code, 
+              e.access_start_time, e.access_end_time,
+              d.name AS division_name,
+              json_agg(json_build_object('name', e2.first_name || ' ' || e2.last_name)) AS colleagues
+       FROM smartphones s
+       INNER JOIN employees e ON e.employee_id = s.employee_id
+       INNER JOIN divisions d ON d.division_id = e.division_id
+       LEFT JOIN employees e2 ON e2.division_id = e.division_id AND e2.employee_id != e.employee_id
+       WHERE s.access_seed = $1
+       GROUP BY e.employee_id, d.name`,
+      [accessSeed]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return res.status(404).json({ success: false, message: "Sesiune invalidă" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        numeComplet: `${row.first_name} ${row.last_name}`,
+        legitimatie: row.badge_code || "-",
+        orarPermis: `${String(row.access_start_time).slice(0,5)} - ${String(row.access_end_time).slice(0,5)}`,
+        divizie: row.division_name,
+        colegi: row.colleagues?.filter(c => c.name?.trim()) || []
+      }
+    });
+  } catch (err) {
+    console.error("❌ Eroare profile:", err.message);
+    res.status(500).json({ success: false, message: "Eroare server" });
+  }
+});
+
+app.get("/api/mobile/my-events", async (req, res) => {
+  try {
+    const { accessSeed } = req.query;
+
+    if (!accessSeed) {
+      return res.status(400).json({ success: false, message: "accessSeed lipsă" });
+    }
+
+    const seedResult = await pool.query(
+      `SELECT e.employee_id FROM smartphones s
+       INNER JOIN employees e ON e.employee_id = s.employee_id
+       WHERE s.access_seed = $1`,
+      [accessSeed]
+    );
+
+    if (seedResult.rowCount === 0) {
+      return res.status(404).json({ success: false, message: "Sesiune invalidă" });
+    }
+
+    const employeeId = seedResult.rows[0].employee_id;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    const events = await pool.query(
+      `SELECT event_id, event_type, event_status, event_time, gate_code, notes
+       FROM access_events
+       WHERE employee_id = $1 AND event_time >= $2
+       ORDER BY event_time DESC`,
+      [employeeId, startOfMonth]
+    );
+
+    return res.json({ success: true, data: events.rows });
+  } catch (err) {
+    console.error("❌ Eroare my-events:", err.message);
+    res.status(500).json({ success: false, message: "Eroare server" });
   }
 });
 
