@@ -59,6 +59,13 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
   const isNew = !editing?.employeeId && !editing?.id;
 
+  const parseSchedule = (s) => {
+    const m = (s || "").match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+    return m ? [m[1], m[2]] : ["08:00", "17:00"];
+  };
+  const [schedStart, setSchedStart] = useState(() => parseSchedule(editing?.schedule)[0]);
+  const [schedEnd, setSchedEnd] = useState(() => parseSchedule(editing?.schedule)[1]);
+
   useEffect(() => {
     if (!isNew) return;
     request("/users").then((users) => {
@@ -89,7 +96,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
       cnp: form.get("cnp"),
       divisionId: divisionIdFinal,
       badgeCode: form.get("badgeCode"),
-      schedule: form.get("schedule"),
+      schedule: `${schedStart} - ${schedEnd}`,
       carPlate: form.get("carPlate") || "-",
       autoAccess: form.get("autoAccess") === "on",
       status: form.get("status"),
@@ -217,19 +224,25 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
             <input type="hidden" name="divisionId" value={userDivisionId} />
           )}
 
-          <label>
-            Orar acces
-            <select
-              name="schedule"
-              defaultValue={editing.schedule || "08:00 - 17:00"}
-            >
-              <option value="06:00 - 14:00">06:00 - 14:00 (Tură 1)</option>
-              <option value="08:00 - 17:00">08:00 - 17:00 (Program normal)</option>
-              <option value="14:00 - 22:00">14:00 - 22:00 (Tură 2)</option>
-              <option value="22:00 - 06:00">22:00 - 06:00 (Tură noapte)</option>
-              <option value="00:00 - 23:59">00:00 - 23:59 (Acces nelimitat)</option>
-            </select>
-          </label>
+          <div style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Orar acces</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="time"
+                value={schedStart}
+                onChange={(e) => setSchedStart(e.target.value)}
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+              />
+              <span style={{ color: "#6b7280", fontWeight: 600 }}>—</span>
+              <input
+                type="time"
+                value={schedEnd}
+                onChange={(e) => setSchedEnd(e.target.value)}
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+              />
+            </div>
+            <span style={{ fontSize: 12, color: "#9ca3af" }}>{schedStart} - {schedEnd}</span>
+          </div>
 
           <label>
             Status
