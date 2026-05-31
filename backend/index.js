@@ -152,11 +152,11 @@ app.post("/api/validate-access", async (req, res) => {
 
     // Stabilim tipul de eveniment implicit dacă mobilul nu trimite nimic din greșeală
     const tipEvenimentFinal = direction === 'EXIT' ? 'EXIT' : 'ENTRY';
-    const mesajNote = tipEvenimentFinal === 'ENTRY' ? 'Acces validat prin sesiune unică' : 'Părăsire incintă confirmată';
 
     const deviceQuery = `
-      SELECT s.smartphone_id, s.device_identifier, s.is_trusted, 
-             e.employee_id, e.first_name, e.last_name, e.is_active
+      SELECT s.smartphone_id, s.device_identifier, s.is_trusted,
+             e.employee_id, e.first_name, e.last_name, e.is_active,
+             e.access_start_time, e.access_end_time
       FROM smartphones s
       INNER JOIN employees e ON e.employee_id = s.employee_id
       WHERE s.access_seed = $1
@@ -176,9 +176,40 @@ app.post("/api/validate-access", async (req, res) => {
       return res.status(403).json({ authorized: false, message: "Accesul fizic pentru acest angajat este suspendat." });
     }
 
+    // Verificare interval orar
+    const isInTimeWindow = (() => {
+      const { access_start_time: start, access_end_time: end } = deviceData;
+      if (!start || !end) return true;
+      const now = new Date();
+      const cur = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const toSec = (t) => { const [h, m, s = 0] = String(t).split(':').map(Number); return h * 3600 + m * 60 + s; };
+      const s = toSec(start), e = toSec(end);
+      return s <= e ? cur >= s && cur <= e : cur >= s || cur <= e;
+    })();
+
+    if (!isInTimeWindow) {
+      const { access_start_time: start, access_end_time: end } = deviceData;
+      const note = `Access outside allowed interval (${start} - ${end})`;
+      const insertResult = await pool.query(`
+        INSERT INTO access_events (employee_id, smartphone_id, event_type, event_status, gate_code, source, notes)
+        VALUES ($1, $2, $3, 'PENDING', 'GATE_MAIN', 'MOBILE_APP', $4)
+        RETURNING event_id
+      `, [deviceData.employee_id, deviceData.smartphone_id, tipEvenimentFinal, note]);
+
+      console.log(`[⏳ PENDING] ${deviceData.first_name} ${deviceData.last_name} - în afara orarului (${start} - ${end})`);
+
+      return res.json({
+        authorized: false,
+        status: 'PENDING',
+        eventId: insertResult.rows[0].event_id,
+        message: `Intrare în afara orarului permis (${String(start).slice(0,5)} - ${String(end).slice(0,5)}). Aștept răspunsul portarului.`
+      });
+    }
+
+    const mesajNote = tipEvenimentFinal === 'ENTRY' ? 'Acces validat prin sesiune unică' : 'Părăsire incintă confirmată';
+
     console.log(`[🔓 ACCES ACTIONAT - ${tipEvenimentFinal}] Poarta deschisă pentru: ${deviceData.first_name} ${deviceData.last_name}`);
 
-    // 🎯 SALVARE ÎN BAZA DE DATE CU EXPLICIT AREA DIRECȚIEI (ENTRY / EXIT)
     await pool.query(`
       INSERT INTO access_events (employee_id, smartphone_id, event_type, event_status, gate_code, source, notes)
       VALUES ($1, $2, $3, 'ALLOWED', 'GATE_MAIN', 'MOBILE_APP', $4)
@@ -187,10 +218,10 @@ app.post("/api/validate-access", async (req, res) => {
     if (typeof setGateTemporarilyOpen === "function") {
       setGateTemporarilyOpen();
     }
-    
-    return res.json({ 
-      authorized: true, 
-      name: `${deviceData.first_name} ${deviceData.last_name}` 
+
+    return res.json({
+      authorized: true,
+      name: `${deviceData.first_name} ${deviceData.last_name}`
     });
 
   } catch (err) {
