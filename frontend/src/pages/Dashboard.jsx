@@ -44,15 +44,15 @@ export default function Dashboard() {
     getEmployees().then(setEmployees).catch(console.error);
   };
 
+  // Auto-refresh la fiecare 3 secunde ca să vadă poarta când se deschide din telefon sau ESP32!
   useEffect(() => {
-    if (user?.role === "PORTAR" || user?.role === "SUPERADMIN") {
-      refreshDashboard();
-      // Auto-refresh la fiecare 3 secunde ca să vadă poarta când se deschide din telefon sau ESP32!
+    refreshDashboard();
+    if (["admin", "operator"].includes(user?.role)) {
       const interval = setInterval(refreshDashboard, 3000);
       return () => clearInterval(interval);
     }
   }, [user]);
-
+  
   if (user?.role === "HR_MANAGER") {
     return (
       <div className="card" style={{ padding: "40px", textAlign: "center" }}>
