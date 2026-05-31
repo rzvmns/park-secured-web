@@ -222,6 +222,7 @@ export default function Dashboard() {
 
   const handleManualDeny = async () => {
     const alert = timeAlert;
+    console.log("timeAlert complet:", alert);
     if (!alert?.eventId) {
       setTimeAlert(null);
       return;
