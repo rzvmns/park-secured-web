@@ -224,25 +224,24 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
             <input type="hidden" name="divisionId" value={userDivisionId} />
           )}
 
-          <div style={{ gridColumn: "span 2", display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Orar acces</span>
+          <label style={{ gridColumn: "span 2" }}>
+            Orar acces
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <input
                 type="time"
                 value={schedStart}
                 onChange={(e) => setSchedStart(e.target.value)}
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+                style={{ flex: 1 }}
               />
-              <span style={{ color: "#6b7280", fontWeight: 600 }}>—</span>
+              <span style={{ color: "var(--muted)", fontWeight: 600 }}>—</span>
               <input
                 type="time"
                 value={schedEnd}
                 onChange={(e) => setSchedEnd(e.target.value)}
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14 }}
+                style={{ flex: 1 }}
               />
             </div>
-            <span style={{ fontSize: 12, color: "#9ca3af" }}>{schedStart} - {schedEnd}</span>
-          </div>
+          </label>
 
           <label>
             Status
