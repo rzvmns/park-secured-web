@@ -23,11 +23,14 @@ function AppShell({ children }) {
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <AppShell>{children}</AppShell>;
+}
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+function RoleRoute({ children, roles }) {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!roles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
   return <AppShell>{children}</AppShell>;
 }
 
@@ -35,33 +38,12 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/employees"
-        element={
-          <ProtectedRoute>
-            <Employees />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/access-logs"
-        element={
-          <ProtectedRoute>
-            <AccessLogs />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/device-requests" element={<ProtectedRoute><DeviceRequests /></ProtectedRoute>} />
-      <Route path="*\" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/employees" element={<RoleRoute roles={["admin", "hr", "division_manager"]}><Employees /></RoleRoute>} />
+      <Route path="/access-logs" element={<RoleRoute roles={["admin", "division_manager", "operator", "viewer"]}><AccessLogs /></RoleRoute>} />
+      <Route path="/reports" element={<RoleRoute roles={["admin"]}><Reports /></RoleRoute>} />
+      <Route path="/device-requests" element={<RoleRoute roles={["admin", "hr"]}><DeviceRequests /></RoleRoute>} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
