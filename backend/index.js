@@ -14,7 +14,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 
 // --- CONECTARE POSTGRESQL (RENDER) REALĂ ---
-const DATABASE_URL = "postgresql://parksecure_db_user:IXxd7rbgbi76Y48ba6HvcJVumIQpkVNs@dpg-d867hqn7f7vs739oi4e0-a.frankfurt-postgres.render.com/parksecure_db";
+const DATABASE_URL = process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
