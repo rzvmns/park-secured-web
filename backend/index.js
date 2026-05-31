@@ -307,6 +307,41 @@ app.delete("/api/admin/reset-device/:employeeId", async (req, res) => {
 
 
 
+// =========================================================================
+// CERERI SCHIMBARE DISPOZITIV - PENTRU HR
+// =========================================================================
+app.get("/api/device-change-requests", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT r.request_id, r.status, r.requested_at,
+             r.old_device_identifier, r.new_device_identifier, r.new_platform,
+             e.first_name, e.last_name, e.badge_code
+      FROM device_change_requests r
+      INNER JOIN employees e ON e.employee_id = r.employee_id
+      WHERE r.status = 'pending'
+      ORDER BY r.requested_at DESC
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.patch("/api/device-change-requests/:id/resolve", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    await pool.query(`
+      UPDATE device_change_requests
+      SET status = $1, resolved_at = NOW()
+      WHERE request_id = $2
+    `, [status, id]);
+    res.json({ success: true, message: `Cerere ${status}.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend ParkSecured sincronizat cu Git pe portul ${PORT}`);
 });
