@@ -439,3 +439,19 @@ export async function validateAccess({
     };
   }
 }
+
+export async function getDeviceChangeRequests() {
+  try {
+    const result = await request("/device-change-requests");
+    return result.data ?? result;
+  } catch {
+    return [];
+  }
+}
+
+export async function resolveDeviceChangeRequest(requestId, status) {
+  return request(`/device-change-requests/${requestId}/resolve`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}

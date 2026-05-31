@@ -5,6 +5,7 @@ const navItems = [
   { to: "/employees", label: "Angajati", icon: "A" },
   { to: "/access-logs", label: "Log acces", icon: "L" },
   { to: "/reports", label: "Rapoarte", icon: "R" },
+  { to: "/device-requests", label: "Cereri dispozitiv", icon: "C" },
 ];
 
 export default function Sidebar() {

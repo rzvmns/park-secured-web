@@ -7,6 +7,7 @@ import Dashboard from "../pages/Dashboard.jsx";
 import Employees from "../pages/Employees.jsx";
 import Login from "../pages/Login.jsx";
 import Reports from "../pages/Reports.jsx";
+import DeviceRequests from "../pages/DeviceRequests.jsx";
 
 function AppShell({ children }) {
   return (
@@ -58,15 +59,9 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path=\"/reports\" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path=\"/device-requests\" element={<ProtectedRoute><DeviceRequests /></ProtectedRoute>} />
+      <Route path=\"*\" element={<Navigate to=\"/dashboard\" replace />} />
     </Routes>
   );
 }
