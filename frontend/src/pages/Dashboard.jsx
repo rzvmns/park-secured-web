@@ -7,6 +7,7 @@ import {
   getEmployees,
   getGateStatus,
   validateAccess,
+  resolveAccessEvent,
 } from "../services/api.js";
 
 function CurrentTime() {
@@ -174,10 +175,9 @@ export default function Dashboard() {
 
         // Detectăm dacă e refuz din cauza intervalului orar
         if (latest.status === "Refuzat" && isOutsideTimeWindow(latest.note)) {
-          // Găsim angajatul în listă ca să avem orarul
           const emp = employees.find((e) => e.employeeId === latest.employeeId);
           setTimeAlert({
-            logId: latest.id,
+            eventId: latest.id,
             employeeName: latest.employeeName,
             department: latest.department,
             carPlate: latest.carPlate,
@@ -220,19 +220,27 @@ export default function Dashboard() {
     }
   };
 
-  const handleManualDeny = () => {
+  const handleManualDeny = async () => {
+    const alert = timeAlert;
     setTimeAlert(null);
     setLastAccess({
-      employee: timeAlert
-        ? { name: timeAlert.employeeName, department: timeAlert.department, carPlate: timeAlert.carPlate }
+      employee: alert
+        ? { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate }
         : null,
       authorized: false,
       message: "Acces interzis manual de portar.",
     });
+    if (alert?.eventId) {
+      try { await resolveAccessEvent(alert.eventId, "DENIED"); } catch { /* ignorăm */ }
+    }
   };
 
-  const handleDismissAlert = () => {
+  const handleDismissAlert = async () => {
+    const alert = timeAlert;
     setTimeAlert(null);
+    if (alert?.eventId) {
+      try { await resolveAccessEvent(alert.eventId, "ALLOWED"); } catch { /* ignorăm */ }
+    }
   };
 
   const latestLog = logs[0];

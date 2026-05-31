@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud-r62j.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud.onrender.com/api";
 const WEB_API_BASE_URL = import.meta.env.VITE_WEB_API_BASE_URL || "https://park-secured-backend.onrender.com/api";
 const TOKEN_KEY = "parksecured_token";
 const USER_KEY = "parksecured_user";
@@ -463,5 +463,12 @@ export async function resolveDeviceChangeRequest(requestId, status) {
   return request(`/device-change-requests/${requestId}/resolve`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+export async function resolveAccessEvent(eventId, resolution) {
+  return request(`/access-events/${eventId}/resolve`, {
+    method: "PATCH",
+    body: JSON.stringify({ resolution }),
   });
 }
