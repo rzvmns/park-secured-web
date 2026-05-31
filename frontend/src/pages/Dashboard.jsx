@@ -70,15 +70,15 @@ const IconBlock = ({ size = 14, color = "#fff" }) => (
 
 const IconArrowIn = ({ size = 13, color = "#16a34a" }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
-    <path d="M8 2v9M4 7l4 4 4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M3 14h10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M2 8h10M8 4l4 4-4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
   </svg>
 );
 
 const IconArrowOut = ({ size = 13, color = "#ea580c" }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
-    <path d="M8 14V5M4 9l4-4 4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M3 14h10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M14 8H4M8 4L4 8l4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
   </svg>
 );
 // ───────────────────────────────────────────────────────────────────────────
@@ -248,6 +248,7 @@ export default function Dashboard() {
   // Refs to hold current values inside the polling closure without stale captures
   const timeAlertRef = useRef(null);
   const prevFirstLogIdRef = useRef(null);
+  const gateTimersRef = useRef([]);
 
   const refreshDashboard = () => {
     getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
@@ -323,21 +324,28 @@ export default function Dashboard() {
       esp32: "Simulat",
       cloud: "OK",
     }));
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       setGateStatus((prev) => ({ ...prev, state: "Deschisa", activeLed: "Verde" }));
-      setTimeout(() => {
+      const t2 = setTimeout(() => {
         setGateStatus((prev) => ({ ...prev, state: "In curs de inchidere", activeLed: "Galben" }));
-        setTimeout(() => {
+        const t3 = setTimeout(() => {
           setGateStatus((prev) => ({ ...prev, state: "Inchisa", activeLed: "Rosu" }));
           setGateAnimating(false);
           gateAnimatingRef.current = false;
+          gateTimersRef.current = [];
         }, 2000);
+        gateTimersRef.current.push(t3);
       }, 20000);
+      gateTimersRef.current.push(t2);
     }, 1500);
+    gateTimersRef.current = [t1];
   };
 
   const simulateClose = () => {
     if (gateClosing) return;
+    // Cancel any pending gate-open timers
+    gateTimersRef.current.forEach(clearTimeout);
+    gateTimersRef.current = [];
     setGateClosing(true);
     setGateStatus((prev) => ({
       ...prev,
