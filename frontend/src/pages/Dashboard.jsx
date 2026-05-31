@@ -113,7 +113,7 @@ function TimeAlertModal({ alert, onDismiss, onManualDeny }) {
               fontSize: "14px", cursor: "pointer",
             }}
           >
-            🚫 Interzice manual
+            🚫 Închide bariera
           </button>
           <button
             onClick={onDismiss}
@@ -251,6 +251,28 @@ export default function Dashboard() {
     }, 1500);
   };
 
+  const simulateClose = () => {
+    setGateAnimating(true);
+    gateAnimatingRef.current = true;
+    setGateStatus((prev) => ({
+      ...prev,
+      state: "In curs de inchidere",
+      activeLed: "Galben",
+      barrier: "Simulat",
+      esp32: "Simulat",
+      cloud: "OK",
+    }));
+    setTimeout(() => {
+      setGateStatus((prev) => ({
+        ...prev,
+        state: "Inchisa",
+        activeLed: "Rosu",
+      }));
+      setGateAnimating(false);
+      gateAnimatingRef.current = false;
+    }, 3000);
+  };
+
   const handleValidateAccess = async (accessCode, direction = "IN") => {
     try {
       const result = await validateAccess({ accessCode, direction, method: "Portar" });
@@ -366,8 +388,8 @@ export default function Dashboard() {
                 <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "OUT"); simulateGate(true); }}>
                   Permite Ieșire
                 </button>
-                <button className="danger-button" type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("INVALID", "IN")}>
-                  Interzice manual
+                <button className="danger-button" type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("INVALID", "IN"); simulateClose(); }}>
+                  Închide bariera
                 </button>
               </>
             )}
