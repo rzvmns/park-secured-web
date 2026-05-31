@@ -298,6 +298,7 @@ export default function Dashboard() {
 
     try {
       await resolveAccessEvent(alert.eventId, "ALLOWED");
+      simulateGate(true);
       setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
@@ -357,21 +358,12 @@ export default function Dashboard() {
           </div>
 
           <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={() => simulateGate(true)}
-              disabled={gateAnimating}
-              style={{ fontSize: "12px", color: "#6b7280" }}
-            >
-              🎬 Test animație
-            </button>
-            {["admin", "operator"].includes(user?.role) && (
+{["admin", "operator"].includes(user?.role) && (
               <>
-                <button className="primary-button" type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("1234", "IN")}>
+                <button className="primary-button" type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "IN"); simulateGate(true); }}>
                   Permite Intrare
                 </button>
-                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("1234", "OUT")}>
+                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "OUT"); simulateGate(true); }}>
                   Permite Ieșire
                 </button>
                 <button className="danger-button" type="button" disabled={gateAnimating} onClick={() => handleValidateAccess("INVALID", "IN")}>
