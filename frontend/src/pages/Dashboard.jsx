@@ -157,6 +157,7 @@ export default function Dashboard() {
   const [timeAlert, setTimeAlert] = useState(null);
   const [gateAnimating, setGateAnimating] = useState(false);
   const gateAnimatingRef = useRef(false);
+  const [gateClosing, setGateClosing] = useState(false);
 
   const refreshDashboard = () => {
     getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
@@ -252,8 +253,8 @@ export default function Dashboard() {
   };
 
   const simulateClose = () => {
-    setGateAnimating(true);
-    gateAnimatingRef.current = true;
+    if (gateClosing) return;
+    setGateClosing(true);
     setGateStatus((prev) => ({
       ...prev,
       state: "In curs de inchidere",
@@ -268,6 +269,7 @@ export default function Dashboard() {
         state: "Inchisa",
         activeLed: "Rosu",
       }));
+      setGateClosing(false);
       setGateAnimating(false);
       gateAnimatingRef.current = false;
     }, 3000);
@@ -388,7 +390,7 @@ export default function Dashboard() {
                 <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "OUT"); simulateGate(true); }}>
                   Permite Ieșire
                 </button>
-                <button className="danger-button" type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("INVALID", "IN"); simulateClose(); }}>
+                <button className="danger-button" type="button" disabled={gateClosing} onClick={() => { handleValidateAccess("INVALID", "IN"); simulateClose(); }}>
                   Închide bariera
                 </button>
               </>
