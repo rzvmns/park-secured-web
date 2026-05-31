@@ -350,6 +350,11 @@ export default function Employees() {
     incaseazaAngajati();
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = editing ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [editing]);
+
   const filteredEmployees = useMemo(() => {
     const value = query.toLowerCase();
     return employees.filter((employee) => {
