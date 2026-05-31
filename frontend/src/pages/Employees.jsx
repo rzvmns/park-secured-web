@@ -464,9 +464,9 @@ export default function Employees() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = editing ? "hidden" : "";
+    document.body.style.overflow = (editing || reportEmployee) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [editing]);
+  }, [editing, reportEmployee]);
 
   const filteredEmployees = useMemo(() => {
     const value = query.toLowerCase();
