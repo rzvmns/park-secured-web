@@ -162,10 +162,21 @@ export default function Dashboard() {
       setLogs(newLogs);
 
       const pendingLog = newLogs.find((log) => log.status === "Pending");
-      if (!pendingLog) {
-        setTimeAlert(null); // ← dacă nu mai e PENDING, închide modalul
+      if (pendingLog) {
+        if (pendingLog.id !== timeAlert?.eventId) {
+          const emp = employees.find((e) => e.employeeId === pendingLog.employeeId);
+          setTimeAlert({
+            eventId: pendingLog.id,
+            employeeName: pendingLog.employeeName,
+            department: pendingLog.department,
+            carPlate: pendingLog.carPlate,
+            schedule: emp?.schedule || null,
+          });
+        }
+      } else {
+        setTimeAlert(null);
       }
-      
+
       if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogId) {
         setPrevFirstLogId(newLogs[0].id);
         const latest = newLogs[0];
@@ -178,20 +189,8 @@ export default function Dashboard() {
           },
           authorized: latest.status === "Valid",
         });
-
-        // Detectăm dacă e refuz din cauza intervalului orar
-        if (latest.status === "Pending" || (latest.status === "Refuzat" && isOutsideTimeWindow(latest.note))) {
-          const emp = employees.find((e) => e.employeeId === latest.employeeId);
-          setTimeAlert({
-            eventId: latest.id,
-            employeeName: latest.employeeName,
-            department: latest.department,
-            carPlate: latest.carPlate,
-            schedule: emp?.schedule || null,
-          });
-        }
       }
-    }).catch(console.error);
+  }).catch(console.error);
     getEmployees().then(setEmployees).catch(console.error);
   };
 
