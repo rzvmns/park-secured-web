@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";import EmployeeTable from "../components/EmployeeTable.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { getEmployees, saveEmployee, request } from "../services/api.js";
+import { getEmployees, saveEmployee, request, getIndividualReport } from "../services/api.js";
 
 const emptyEmployee = {
   firstName: "",
@@ -323,6 +323,118 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   );
 }
 
+function ModalRaport({ employee, onClose }) {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const employeeId = employee.employeeId || employee.id;
+    setLoading(true);
+    setError("");
+    getIndividualReport(employeeId)
+      .then(setReport)
+      .catch((err) => setError(err.message || "Eroare la generarea raportului."))
+      .finally(() => setLoading(false));
+  }, [employee]);
+
+  const formatDate = (isoString) => {
+    if (!isoString) return "—";
+    const d = new Date(isoString);
+    return d.toLocaleString("ro-RO", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  };
+
+  return (
+    <div style={overlayStyle}>
+      <div style={{ ...modalStyle, maxWidth: 680 }}>
+        <div className="section-heading" style={{ marginBottom: 20 }}>
+          <div>
+            <p className="eyebrow">Raport prezență</p>
+            <h2 style={{ margin: 0 }}>{employee.name}</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+              {employee.department || "—"} · {employee.schedule || "—"}
+            </p>
+          </div>
+          <button className="ghost-button" type="button" onClick={onClose}>Închide</button>
+        </div>
+
+        {loading && (
+          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--muted)" }}>
+            Se generează raportul...
+          </div>
+        )}
+
+        {error && (
+          <div style={{ padding: 16, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, color: "#b91c1c", fontSize: 14 }}>
+            {error}
+          </div>
+        )}
+
+        {report && !loading && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+              <div className="metric-card" style={{ textAlign: "center" }}>
+                <span>Total accesări</span>
+                <strong style={{ fontSize: 28 }}>{report.totalEvents}</strong>
+              </div>
+              <div className="metric-card" style={{ textAlign: "center" }}>
+                <span>Accesuri permise</span>
+                <strong style={{ fontSize: 28, color: "var(--success)" }}>{report.allowedEvents}</strong>
+              </div>
+              <div className="metric-card" style={{ textAlign: "center" }}>
+                <span>Accesuri refuzate</span>
+                <strong style={{ fontSize: 28, color: "var(--danger, #c2413a)" }}>{report.deniedEvents}</strong>
+              </div>
+            </div>
+
+            {report.events.length === 0 ? (
+              <p style={{ textAlign: "center", color: "var(--muted)", padding: "24px 0" }}>
+                Nu există evenimente înregistrate pentru acest angajat.
+              </p>
+            ) : (
+              <div className="table-wrap" style={{ maxHeight: 320, overflowY: "auto" }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data / Ora</th>
+                      <th>Tip</th>
+                      <th>Status</th>
+                      <th>Sursă</th>
+                      <th>Notă</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.events.map((ev) => (
+                      <tr key={ev.eventId}>
+                        <td style={{ whiteSpace: "nowrap" }}>{formatDate(ev.eventTime)}</td>
+                        <td>
+                          <span className={`badge ${ev.eventType === "ENTRY" ? "info" : "muted"}`}>
+                            {ev.eventType === "ENTRY" ? "Intrare" : "Ieșire"}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${ev.eventStatus === "ALLOWED" ? "success" : "danger"}`}>
+                            {ev.eventStatus === "ALLOWED" ? "Permis" : "Refuzat"}
+                          </span>
+                        </td>
+                        <td>{ev.source || "—"}</td>
+                        <td style={{ fontSize: 12, color: "var(--muted)" }}>{ev.notes || ev.gateCode || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const overlayStyle = {
   position: "fixed", inset: 0, zIndex: 9999,
   display: "flex", alignItems: "center", justifyContent: "center",
@@ -341,6 +453,7 @@ export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
+  const [reportEmployee, setReportEmployee] = useState(null);
 
   const incaseazaAngajati = () => {
     getEmployees().then(setEmployees).catch(console.error);
@@ -403,6 +516,7 @@ export default function Employees() {
         <EmployeeTable
           employees={filteredEmployees}
           onEdit={["admin", "hr"].includes(user?.role) ? setEditing : undefined}
+          onReport={["admin", "division_manager"].includes(user?.role) ? setReportEmployee : undefined}
         />
       </section>
 
@@ -413,6 +527,13 @@ export default function Employees() {
           onSaved={handleSaved}
           userRole={user?.role}
           userDivisionId={user?.divisionId}
+        />
+      )}
+
+      {reportEmployee && (
+        <ModalRaport
+          employee={reportEmployee}
+          onClose={() => setReportEmployee(null)}
         />
       )}
     </div>

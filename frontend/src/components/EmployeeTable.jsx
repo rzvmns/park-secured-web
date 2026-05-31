@@ -1,4 +1,4 @@
-export default function EmployeeTable({ employees = [], onEdit }) {
+export default function EmployeeTable({ employees = [], onEdit, onReport }) {
   // Verificăm dacă employees este valid, altfel afișăm un mesaj
   if (!employees || employees.length === 0) {
     return <div className="p-8 text-center">Nu s-au găsit angajați.</div>;
@@ -51,6 +51,16 @@ export default function EmployeeTable({ employees = [], onEdit }) {
                 </span>
               </td>
               <td className="table-actions">
+                {onReport && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    style={{ marginRight: 6 }}
+                    onClick={() => onReport(employee)}
+                  >
+                    📊 Raport
+                  </button>
+                )}
                 <button 
                   type="button" 
                   className="ghost-button" 

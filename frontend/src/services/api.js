@@ -479,6 +479,25 @@ export async function resolveDeviceChangeRequest(requestId, status) {
   return response.json();
 }
 
+export async function getIndividualReport(employeeId) {
+  const report = await request(`/reports/individual/${employeeId}`);
+  return {
+    employeeId: report.employeeId,
+    totalEvents: report.totalEvents ?? 0,
+    allowedEvents: report.allowedEvents ?? 0,
+    deniedEvents: report.deniedEvents ?? 0,
+    events: (report.events || []).map((event) => ({
+      eventId: event.eventId,
+      eventType: event.eventType,
+      eventStatus: event.eventStatus,
+      eventTime: event.eventTime,
+      gateCode: event.gateCode,
+      source: event.source,
+      notes: event.notes,
+    })),
+  };
+}
+
 export async function resolveAccessEvent(eventId, resolution) {
   return request(`/access-events/${eventId}/resolve`, {
     method: "PATCH",
