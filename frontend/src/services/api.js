@@ -462,7 +462,9 @@ export async function validateAccess({
 
 export async function getDeviceChangeRequests() {
   try {
-    const response = await fetch(`${WEB_API_BASE_URL}/device-change-requests`);
+    const response = await fetch(`${WEB_API_BASE_URL}/device-change-requests`, {
+      headers: { Authorization: `Bearer ${getStoredToken()}` }
+    });
     const result = await response.json();
     return result.data || result;
   } catch {
@@ -472,8 +474,11 @@ export async function getDeviceChangeRequests() {
 
 export async function resolveDeviceChangeRequest(requestId, status) {
   const response = await fetch(`${WEB_API_BASE_URL}/device-change-requests/${requestId}/resolve`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getStoredToken()}`
+    },
     body: JSON.stringify({ status }),
   });
   return response.json();
