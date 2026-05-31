@@ -207,7 +207,7 @@ function mapCloudEvent(event, employees = []) {
     department: employee?.department || "N/A",
     timestamp: event.eventTime,
     direction: event.eventType === "EXIT" ? "OUT" : "IN",
-    status: event.eventStatus === "DENIED" ? "Refuzat" : "Valid",
+    status: event.eventStatus === "DENIED" ? "Refuzat" : event.eventStatus === "PENDING" ? "Pending" : "Valid",
     method: event.source || "Cloud",
     carPlate: employee?.carPlate || "-",
     note: event.notes || event.gateCode || "-",

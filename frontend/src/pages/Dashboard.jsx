@@ -174,7 +174,7 @@ export default function Dashboard() {
         });
 
         // Detectăm dacă e refuz din cauza intervalului orar
-        if (latest.status === "Refuzat" && isOutsideTimeWindow(latest.note)) {
+        if (latest.status === "Pending" || (latest.status === "Refuzat" && isOutsideTimeWindow(latest.note))) {
           const emp = employees.find((e) => e.employeeId === latest.employeeId);
           setTimeAlert({
             eventId: latest.id,
