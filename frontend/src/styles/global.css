@@ -222,15 +222,17 @@ td span,
 }
 
 .avatar {
-  display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
   flex: 0 0 auto;
+  text-align: center;
   border-radius: 99px;
-  color: #ffffff;
+  line-height: 1;
+  align-content: center;
   background: var(--primary);
   font-weight: 800;
+  color: white !important;
 }
 
 .avatar.soft {
