@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import EmployeeTable from "../components/EmployeeTable.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { getEmployees, saveEmployee } from "../services/api.js";
+import { getEmployees, saveEmployee, request } from "../services/api.js";
 
 const emptyEmployee = {
   name: "",
@@ -14,6 +14,224 @@ const emptyEmployee = {
   carPlate: "-",
   autoAccess: false,
   status: "Activ",
+};
+
+function generateTempPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let pass = "Ps@";
+  for (let i = 0; i < 7; i++) {
+    pass += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return pass;
+}
+
+function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [createdPassword, setCreatedPassword] = useState(null);
+  const isNew = !editing?.employeeId && !editing?.id;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+
+    const form = new FormData(e.currentTarget);
+    const divisionIdFinal = userRole === "admin"
+      ? Number(form.get("divisionId"))
+      : userDivisionId;
+
+    const employee = {
+      ...editing,
+      name: form.get("name"),
+      cnp: form.get("cnp"),
+      divisionId: divisionIdFinal,
+      badgeCode: form.get("badgeCode"),
+      schedule: form.get("schedule"),
+      carPlate: form.get("carPlate") || "-",
+      autoAccess: form.get("autoAccess") === "on",
+      status: form.get("status"),
+    };
+
+    const emailCont = form.get("emailCont")?.trim();
+
+    try {
+      const saved = await saveEmployee(employee);
+
+      // Dacă e angajat nou și s-a completat emailul, crează și contul
+      if (isNew && emailCont) {
+        const tempPassword = generateTempPassword();
+        try {
+          await request("/users", {
+            method: "POST",
+            body: JSON.stringify({
+              email: emailCont,
+              password: tempPassword,
+              role: "operator",
+              divisionId: divisionIdFinal,
+              employeeId: saved.employeeId || saved.id,
+              isActive: true,
+            }),
+          });
+          setCreatedPassword(tempPassword);
+          setSaving(false);
+          onSaved(saved);
+          return;
+        } catch (err) {
+          setError(`Angajat creat, dar contul nu a putut fi creat: ${err.message}`);
+          setSaving(false);
+          onSaved(saved);
+          return;
+        }
+      }
+
+      onSaved(saved);
+      onClose();
+    } catch (err) {
+      setError(err.message || "Eroare la salvare.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Dacă contul a fost creat, arată parola temporară
+  if (createdPassword) {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ ...modalStyle, maxWidth: 420, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+          <h2 style={{ margin: "0 0 8px", color: "#0f8a5f" }}>Angajat și cont create!</h2>
+          <p style={{ color: "#66758a", marginBottom: 20 }}>
+            Comunică angajatului parola temporară de mai jos. Aceasta nu va mai fi afișată.
+          </p>
+          <div style={{
+            background: "#f0fdf4", border: "2px solid #0f8a5f", borderRadius: 8,
+            padding: "16px 24px", fontFamily: "monospace", fontSize: 22,
+            fontWeight: "bold", color: "#0f8a5f", letterSpacing: 2, marginBottom: 24
+          }}>
+            {createdPassword}
+          </div>
+          <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 24 }}>
+            Angajatul trebuie să se logheze cu această parolă și să o schimbe ulterior.
+          </p>
+          <button className="primary-button" onClick={onClose} style={{ width: "100%" }}>
+            Am notat parola, închide
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <div className="section-heading" style={{ marginBottom: 20 }}>
+          <div>
+            <p className="eyebrow">{isNew ? "Angajat nou" : "Editare angajat"}</p>
+            <h2 style={{ margin: 0 }}>{isNew ? "Adaugă angajat" : editing.name}</h2>
+          </div>
+          <button className="ghost-button" type="button" onClick={onClose}>
+            Închide
+          </button>
+        </div>
+
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label>
+            Nume complet
+            <input name="name" defaultValue={editing.name} required />
+          </label>
+
+          <label>
+            CNP / identificator
+            <input name="cnp" defaultValue={editing.cnp} required />
+          </label>
+
+          <label>
+            Cod legitimație (badge)
+            <input name="badgeCode" defaultValue={editing.badgeCode || ""} />
+          </label>
+
+          {userRole === "admin" ? (
+            <label>
+              ID divizie
+              <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
+            </label>
+          ) : (
+            <input type="hidden" name="divisionId" value={userDivisionId} />
+          )}
+
+          <label>
+            Orar acces
+            <input name="schedule" defaultValue={editing.schedule} placeholder="08:00 - 17:00" required />
+          </label>
+
+          <label>
+            Status
+            <select name="status" defaultValue={editing.status}>
+              <option value="Activ">Activ</option>
+              <option value="Inactiv">Inactiv</option>
+            </select>
+          </label>
+
+          <label>
+            Număr mașină
+            <input name="carPlate" defaultValue={editing.carPlate === "-" ? "" : editing.carPlate} placeholder="ex: TM01ABC" />
+          </label>
+
+          <label className="checkbox-field" style={{ display: "flex", gap: 8, alignItems: "center", gridColumn: "span 2" }}>
+            <input name="autoAccess" type="checkbox" defaultChecked={editing.autoAccess} />
+            <span>Acces auto permis (Barieră ESP32)</span>
+          </label>
+
+          {isNew && (
+            <>
+              <div style={{ gridColumn: "span 2", borderTop: "1px solid #e5e7eb", paddingTop: 16, marginTop: 4 }}>
+                <p className="eyebrow" style={{ marginBottom: 12 }}>Cont aplicație (opțional)</p>
+              </div>
+              <label style={{ gridColumn: "span 2" }}>
+                Email cont mobil / web
+                <input
+                  name="emailCont"
+                  type="email"
+                  placeholder="ex: ion.popescu@company.ro"
+                  autoComplete="off"
+                />
+              </label>
+              <p style={{ gridColumn: "span 2", fontSize: 12, color: "#9ca3af", margin: "-8px 0 0" }}>
+                Dacă completezi emailul, se va crea automat un cont cu parolă temporară.
+              </p>
+            </>
+          )}
+
+          {error && (
+            <p style={{ gridColumn: "span 2", color: "#c2413a", fontSize: 13 }}>{error}</p>
+          )}
+
+          <button
+            className="primary-button"
+            type="submit"
+            style={{ gridColumn: "span 2", marginTop: 8 }}
+            disabled={saving}
+          >
+            {saving ? "Se salvează..." : isNew ? "Creează angajat" : "Salvează modificări"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const overlayStyle = {
+  position: "fixed", inset: 0, zIndex: 9999,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  background: "rgba(0,0,0,0.45)",
+};
+
+const modalStyle = {
+  background: "#fff", borderRadius: 12, padding: "28px 32px",
+  width: "90%", maxWidth: 580,
+  boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+  maxHeight: "90vh", overflowY: "auto",
 };
 
 export default function Employees() {
@@ -33,50 +251,21 @@ export default function Employees() {
   const filteredEmployees = useMemo(() => {
     const value = query.toLowerCase();
     return employees.filter((employee) => {
-      const areDreptulPeDivizie = user?.role === "SUPERADMIN" || employee.divisionId === user?.divisionId;
+      const areDreptulPeDivizie = user?.role === "admin" || user?.role === "hr" || employee.divisionId === user?.divisionId;
       const matchesQuery = [employee.name, employee.department, employee.role, employee.carPlate]
-        .join(" ")
-        .toLowerCase()
-        .includes(value);
+        .join(" ").toLowerCase().includes(value);
       return areDreptulPeDivizie && matchesQuery;
     });
   }, [employees, query, user]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    
-    const divisionIdFinal = user?.role === "SUPERADMIN" 
-      ? Number(form.get("divisionId")) 
-      : user?.divisionId;
-
-    const employee = {
-      ...editing,
-      name: form.get("name"),
-      cnp: form.get("cnp"),
-      divisionId: divisionIdFinal,
-      role: form.get("role"),
-      department: form.get("department"),
-      schedule: form.get("schedule"),
-      phone: form.get("phone"),
-      carPlate: form.get("carPlate") || "-",
-      autoAccess: form.get("autoAccess") === "on",
-      status: form.get("status"),
-    };
-
-    try {
-      const saved = await saveEmployee(employee);
-      setEmployees((current) => {
-        const exists = current.some((item) => item.id === saved.id);
-        return exists
-          ? current.map((item) => (item.id === saved.id ? saved : item))
-          : [saved, ...current];
-      });
-      setEditing(null);
-      incaseazaAngajati();
-    } catch (e) {
-      console.error(e);
-    }
+  const handleSaved = (saved) => {
+    setEmployees((current) => {
+      const exists = current.some((item) => item.id === saved.id);
+      return exists
+        ? current.map((item) => (item.id === saved.id ? saved : item))
+        : [saved, ...current];
+    });
+    incaseazaAngajati();
   };
 
   return (
@@ -84,11 +273,11 @@ export default function Employees() {
       <section className="section-heading page-heading">
         <div>
           <p className="eyebrow">Modul Administrare ({user?.role || "Fără Rol"})</p>
-          <h2>Angajati si drepturi de acces - Divizia {user?.role === "SUPERADMIN" ? "Globală" : user?.divisionId}</h2>
+          <h2>Angajați și drepturi de acces</h2>
         </div>
-        {user?.role !== "PORTAR" && (
+        {user?.role !== "operator" && (
           <button className="primary-button" type="button" onClick={() => setEditing(emptyEmployee)}>
-            Adauga angajat
+            Adaugă angajat
           </button>
         )}
       </section>
@@ -98,81 +287,26 @@ export default function Employees() {
           <input
             className="search-input"
             type="search"
-            placeholder="Cauta dupa nume, departament, rol sau masina"
+            placeholder="Caută după nume, departament, rol sau mașină"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
           />
           <span className="badge info">{filteredEmployees.length} rezultate</span>
         </div>
-        <EmployeeTable employees={filteredEmployees} onEdit={user?.role !== "PORTAR" ? setEditing : undefined} />
+        <EmployeeTable
+          employees={filteredEmployees}
+          onEdit={user?.role !== "operator" ? setEditing : undefined}
+        />
       </section>
 
       {editing && (
-        <section className="card form-card" style={{ marginTop: "20px" }}>
-          <div className="section-heading">
-            <div>
-              <h2>{editing.id ? "Editare angajat" : "Angajat nou"}</h2>
-            </div>
-            <button className="ghost-button" type="button" onClick={() => setEditing(null)}>
-              Inchide
-            </button>
-          </div>
-          <form className="form-grid" onSubmit={handleSubmit}>
-            <label>
-              Nume complet
-              <input name="name" defaultValue={editing.name} required />
-            </label>
-            <label>
-              CNP / identificator
-              <input name="cnp" defaultValue={editing.cnp} required />
-            </label>
-            {user?.role === "SUPERADMIN" ? (
-              <label>
-                ID divizie
-                <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
-              </label>
-            ) : (
-              <input type="hidden" name="divisionId" value={user?.divisionId} />
-            )}
-            <label>
-              Rol
-              <input name="role" defaultValue={editing.role} required />
-            </label>
-            <label>
-              Departament
-              <input name="department" defaultValue={editing.department} required />
-            </label>
-            <label>
-              Orar acces
-              <input name="schedule" defaultValue={editing.schedule} required />
-            </label>
-            <label>
-              Smartphone
-              <select name="phone" defaultValue={editing.phone}>
-                <option value="Asociat">Asociat</option>
-                <option value="Neasociat">Neasociat</option>
-              </select>
-            </label>
-            <label>
-              Status
-              <select name="status" defaultValue={editing.status}>
-                <option value="Activ">Activ</option>
-                <option value="Inactiv">Inactiv</option>
-              </select>
-            </label>
-            <label>
-              Numar masina
-              <input name="carPlate" defaultValue={editing.carPlate} />
-            </label>
-            <label className="checkbox-field" style={{ display: "flex", gap: "8px", alignItems: "center", gridColumn: "span 2" }}>
-              <input name="autoAccess" type="checkbox" defaultChecked={editing.autoAccess} />
-              <span>Acces auto permis (Barieră ESP32)</span>
-            </label>
-            <button className="primary-button" type="submit" style={{ marginTop: "10px" }}>
-              Salveaza Modificari
-            </button>
-          </form>
-        </section>
+        <ModalAngajat
+          editing={editing}
+          onClose={() => setEditing(null)}
+          onSaved={handleSaved}
+          userRole={user?.role}
+          userDivisionId={user?.divisionId}
+        />
       )}
     </div>
   );
