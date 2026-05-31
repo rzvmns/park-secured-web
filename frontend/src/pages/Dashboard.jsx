@@ -350,7 +350,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+          <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => simulateGate(true)}
+              style={{ fontSize: "12px", color: "#6b7280" }}
+            >
+              🎬 Test animație
+            </button>
             {["admin", "operator"].includes(user?.role) && (
               <>
                 <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
