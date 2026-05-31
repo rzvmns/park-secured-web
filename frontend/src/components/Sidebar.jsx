@@ -1,14 +1,20 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: "D" },
-  { to: "/employees", label: "Angajati", icon: "A" },
-  { to: "/access-logs", label: "Log acces", icon: "L" },
-  { to: "/reports", label: "Rapoarte", icon: "R" },
-  { to: "/device-requests", label: "Cereri dispozitiv", icon: "C" },
+const allNavItems = [
+  { to: "/dashboard", label: "Dashboard", icon: "D", roles: ["admin", "hr", "division_manager", "operator", "viewer"] },
+  { to: "/employees", label: "Angajati", icon: "A", roles: ["admin", "hr", "division_manager"] },
+  { to: "/access-logs", label: "Log acces", icon: "L", roles: ["admin", "division_manager", "operator", "viewer"] },
+  { to: "/reports", label: "Rapoarte", icon: "R", roles: ["admin"] },
+  { to: "/device-requests", label: "Cereri dispozitiv", icon: "C", roles: ["admin", "hr"] },
 ];
 
 export default function Sidebar() {
+  const { user } = useAuth();
+  const role = user?.role;
+
+  const navItems = allNavItems.filter((item) => item.roles.includes(role));
+
   return (
     <aside className="sidebar">
       <div className="brand">
