@@ -222,24 +222,42 @@ export default function Dashboard() {
 
   const handleManualDeny = async () => {
     const alert = timeAlert;
-    setTimeAlert(null);
-    setLastAccess({
-      employee: alert
-        ? { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate }
-        : null,
-      authorized: false,
-      message: "Acces interzis manual de portar.",
-    });
-    if (alert?.eventId) {
-      try { await resolveAccessEvent(alert.eventId, "DENIED"); } catch { /* ignorăm */ }
+    if (!alert?.eventId) {
+      setTimeAlert(null);
+      return;
+    }
+
+    try {
+      await resolveAccessEvent(alert.eventId, "DENIED");
+      setTimeAlert(null); // închidem DOAR dacă a reușit
+      setLastAccess({
+        employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
+        authorized: false,
+        message: "Acces interzis manual de portar.",
+      });
+    } catch (err) {
+      console.error("Eroare la refuzare:", err);
+      // opțional: afișează un toast de eroare
     }
   };
 
   const handleDismissAlert = async () => {
     const alert = timeAlert;
-    setTimeAlert(null);
-    if (alert?.eventId) {
-      try { await resolveAccessEvent(alert.eventId, "ALLOWED"); } catch { /* ignorăm */ }
+    if (!alert?.eventId) {
+      setTimeAlert(null);
+      return;
+    }
+
+    try {
+      await resolveAccessEvent(alert.eventId, "ALLOWED");
+      setTimeAlert(null);
+      setLastAccess({
+        employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
+        authorized: true,
+        message: "Acces permis excepțional de portar.",
+      });
+    } catch (err) {
+      console.error("Eroare la aprobare:", err);
     }
   };
 
