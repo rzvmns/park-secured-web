@@ -88,7 +88,48 @@ app.post("/api/mobile/login-secure", async (req, res) => {
     if (!isPasswordCorrect) {
       return res.status(401).json({ success: false, message: "E-mailul sau parola este incorectă." });
     }
+        // Verifică dacă există deja un smartphone înregistrat pentru acest angajat
+    const existingDevice = await pool.query(
+      `SELECT smartphone_id, device_identifier FROM smartphones WHERE employee_id = $1`,
+      [realEmployeeId]
+    );
 
+    // Dacă există un device diferit → cerere de schimbare
+    if (existingDevice.rowCount > 0 && existingDevice.rows[0].device_identifier !== deviceIdentifier) {
+      const oldDeviceIdentifier = existingDevice.rows[0].device_identifier;
+
+      // Verifică dacă există deja o cerere pending pentru acest angajat
+      const existingRequest = await pool.query(
+        `SELECT request_id FROM device_change_requests 
+        WHERE employee_id = $1 AND status = 'pending'`,
+        [realEmployeeId]
+      );
+
+      if (existingRequest.rowCount === 0) {
+        await pool.query(
+          `INSERT INTO device_change_requests (employee_id, old_device_identifier, new_device_identifier, new_platform, status)
+          VALUES ($1, $2, $3, $4, 'pending')`,
+          [realEmployeeId, oldDeviceIdentifier, deviceIdentifier, platform || 'unknown']
+        );
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Există deja un dispozitiv înregistrat pentru acest cont. Cererea de schimbare a fost trimisă către HR."
+      });
+    }
+
+    // Nu există device sau e același device → înregistrare normală
+    await pool.query(
+      `DELETE FROM smartphones WHERE employee_id = $1 OR device_identifier = $2`,
+      [realEmployeeId, deviceIdentifier]
+    );
+
+    await pool.query(
+      `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+      VALUES ($1, $2, $3, $4, true)`,
+      [realEmployeeId, platform || 'iOS', deviceIdentifier, noulSeedSesiune]
+    );
     const realEmployeeId = accountData.employee_id;
 
     const noulSeedSesiune = crypto.randomBytes(32).toString("hex").toUpperCase();
@@ -347,11 +388,41 @@ app.patch("/api/device-change-requests/:id/resolve", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    await pool.query(`
-      UPDATE device_change_requests
-      SET status = $1, resolved_at = NOW()
-      WHERE request_id = $2
-    `, [status, id]);
+
+    // Actualizează statusul cererii
+    await pool.query(
+      `UPDATE device_change_requests
+       SET status = $1, resolved_at = NOW()
+       WHERE request_id = $2`,
+      [status, id]
+    );
+
+    // Dacă e aprobat, face swap-ul pe smartphones
+    if (status === "approved") {
+      const requestResult = await pool.query(
+        `SELECT employee_id, new_device_identifier, new_platform 
+         FROM device_change_requests WHERE request_id = $1`,
+        [id]
+      );
+      const request = requestResult.rows[0];
+
+      if (request) {
+        const newSeed = require("crypto").randomBytes(32).toString("hex").toUpperCase();
+
+        // Șterge device-ul vechi și inserează cel nou
+        await pool.query(
+          `DELETE FROM smartphones WHERE employee_id = $1`,
+          [request.employee_id]
+        );
+
+        await pool.query(
+          `INSERT INTO smartphones (employee_id, platform, device_identifier, access_seed, is_trusted)
+           VALUES ($1, $2, $3, $4, true)`,
+          [request.employee_id, request.new_platform, request.new_device_identifier, newSeed]
+        );
+      }
+    }
+
     res.json({ success: true, message: `Cerere ${status}.` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
