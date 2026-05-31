@@ -301,7 +301,7 @@ export async function getAccessLogs() {
 
 export async function getGateStatus() {
   try {
-    const response = await fetch(`${WEB_API_BASE_URL}/api/gate/status`);
+    const response = await fetch(`${WEB_API_BASE_URL}/gate/status`);
     const result = await response.json();
     return {
       state: result.state || "Inchisa",
