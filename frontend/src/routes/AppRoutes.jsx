@@ -30,20 +30,32 @@ function ProtectedRoute({ children }) {
 function RoleRoute({ children, roles }) {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!roles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
+  if (!roles.includes(user?.role)) return <Navigate to={defaultRoute(user?.role)} replace />;
   return <AppShell>{children}</AppShell>;
+}
+
+function defaultRoute(role) {
+  if (role === "admin" || role === "operator") return "/dashboard";
+  if (role === "division_manager") return "/reports";
+  return "/access-logs";
+}
+
+function RoleRedirect() {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Navigate to={defaultRoute(user?.role)} replace />;
 }
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<RoleRoute roles={["admin", "operator"]}><Dashboard /></RoleRoute>} />
       <Route path="/employees" element={<RoleRoute roles={["admin", "hr", "division_manager"]}><Employees /></RoleRoute>} />
-      <Route path="/access-logs" element={<RoleRoute roles={["admin", "division_manager", "operator", "viewer"]}><AccessLogs /></RoleRoute>} />
-      <Route path="/reports" element={<RoleRoute roles={["admin"]}><Reports /></RoleRoute>} />
+      <Route path="/access-logs" element={<RoleRoute roles={["admin", "hr", "operator", "viewer"]}><AccessLogs /></RoleRoute>} />
+      <Route path="/reports" element={<RoleRoute roles={["admin", "division_manager"]}><Reports /></RoleRoute>} />
       <Route path="/device-requests" element={<RoleRoute roles={["admin", "hr"]}><DeviceRequests /></RoleRoute>} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<RoleRedirect />} />
     </Routes>
   );
 }

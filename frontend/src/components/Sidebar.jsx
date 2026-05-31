@@ -2,10 +2,10 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const allNavItems = [
-  { to: "/dashboard", label: "Dashboard", icon: "D", roles: ["admin", "hr", "division_manager", "operator", "viewer"] },
+  { to: "/dashboard", label: "Dashboard", icon: "D", roles: ["admin", "operator"] },
   { to: "/employees", label: "Angajati", icon: "A", roles: ["admin", "hr", "division_manager"] },
-  { to: "/access-logs", label: "Log acces", icon: "L", roles: ["admin", "division_manager", "operator", "viewer"] },
-  { to: "/reports", label: "Rapoarte", icon: "R", roles: ["admin"] },
+  { to: "/access-logs", label: "Log acces", icon: "L", roles: ["admin", "hr", "operator", "viewer"] },
+  { to: "/reports", label: "Rapoarte", icon: "R", roles: ["admin", "division_manager"] },
   { to: "/device-requests", label: "Cereri dispozitiv", icon: "C", roles: ["admin", "hr"] },
 ];
 

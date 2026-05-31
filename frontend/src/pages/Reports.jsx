@@ -7,12 +7,12 @@ export default function Reports() {
   const [reports, setReports] = useState(null);
 
   useEffect(() => {
-    if (user?.role === "SUPERADMIN") {
+    if (user?.role === "admin" || user?.role === "division_manager") {
       getReports().then(setReports).catch(console.error);
     }
   }, [user]);
 
-  if (user?.role !== "SUPERADMIN") {
+  if (user?.role !== "admin" && user?.role !== "division_manager") {
     return (
       <div className="card" style={{ padding: "40px", textAlign: "center" }}>
         <h2>Restricție Drepturi de Acces</h2>
