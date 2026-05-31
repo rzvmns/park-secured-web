@@ -11,8 +11,10 @@ import {
 } from "../services/api.js";
 
 // ── SVG icons ──────────────────────────────────────────────────────────────
+const iconStyle = { display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 };
+
 const IconCar = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <path d="M3.5 9l1.8-4.5A1 1 0 0 1 6.24 4h7.52a1 1 0 0 1 .94.5L16.5 9" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
     <rect x="2" y="9" width="16" height="6" rx="1.5" stroke={color} strokeWidth="1.5"/>
     <circle cx="6" cy="15" r="1.5" fill={color}/>
@@ -22,7 +24,7 @@ const IconCar = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconWalk = ({ size = 14, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <circle cx="10" cy="3.5" r="1.5" fill={color}/>
     <path d="M7 7.5l1.5 3 2-1.5 1.5 3" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M8.5 10.5L7 16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
@@ -31,7 +33,7 @@ const IconWalk = ({ size = 14, color = "currentColor" }) => (
 );
 
 const IconCheck = ({ size = 16, color = "#16a34a" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <circle cx="10" cy="10" r="9" fill={color} opacity="0.15"/>
     <circle cx="10" cy="10" r="9" stroke={color} strokeWidth="1.5"/>
     <path d="M6 10.5l3 3 5-6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -39,7 +41,7 @@ const IconCheck = ({ size = 16, color = "#16a34a" }) => (
 );
 
 const IconX = ({ size = 16, color = "#dc2626" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <circle cx="10" cy="10" r="9" fill={color} opacity="0.15"/>
     <circle cx="10" cy="10" r="9" stroke={color} strokeWidth="1.5"/>
     <path d="M7 7l6 6M13 7l-6 6" stroke={color} strokeWidth="2" strokeLinecap="round"/>
@@ -55,30 +57,32 @@ const IconWarning = ({ size = 48, color = "#c2413a" }) => (
 );
 
 const IconClock = ({ size = 14, color = "#b7791f" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="1.5"/>
     <path d="M10 6v4.5l3 2" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
 const IconBlock = ({ size = 14, color = "#fff" }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={iconStyle}>
     <circle cx="10" cy="10" r="8.5" stroke={color} strokeWidth="1.5"/>
     <path d="M4 10h12" stroke={color} strokeWidth="2" strokeLinecap="round"/>
   </svg>
 );
 
+// Intrare = spre stânga (intri în parcare, mergi spre interior)
 const IconArrowIn = ({ size = 13, color = "#16a34a" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
-    <path d="M2 8h10M8 4l4 4-4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M14 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={iconStyle}>
+    <path d="M14 8H4M8 4L4 8l4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
   </svg>
 );
 
+// Ieșire = spre dreapta (ieși din parcare)
 const IconArrowOut = ({ size = 13, color = "#ea580c" }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
-    <path d="M14 8H4M8 4L4 8l4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M2 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={iconStyle}>
+    <path d="M2 8h10M8 4l4 4-4 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14 3v10" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
   </svg>
 );
 // ───────────────────────────────────────────────────────────────────────────
