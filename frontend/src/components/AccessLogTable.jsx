@@ -63,9 +63,22 @@ export default function AccessLogTable({ logs = [] }) {
               <td>{formatDate(log.timestamp)}</td>
               
               <td>
-                <div className="cell-main">
-                  <strong>{log.employeeName || "Necunoscut"}</strong>
-                  <span className="subtext">{log.department || "N/A"}</span>
+                <div className="cell-main" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {log.photoUrl ? (
+                    <img
+                      src={log.photoUrl}
+                      alt={log.employeeName}
+                      style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>
+                      👤
+                    </div>
+                  )}
+                  <div>
+                    <strong>{log.employeeName || "Necunoscut"}</strong>
+                    <span className="subtext">{log.department || "N/A"}</span>
+                  </div>
                 </div>
               </td>
               

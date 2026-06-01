@@ -96,6 +96,8 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
       cnp: form.get("cnp"),
       divisionId: divisionIdFinal,
       badgeCode: form.get("badgeCode"),
+      photoUrl: form.get("photoUrl") || editing.photoUrl || null,
+      bluetoothCode: form.get("bluetoothCode") || editing.bluetoothCode || null,
       schedule: `${schedStart} - ${schedEnd}`,
       carPlate: form.get("carPlate") || "-",
       autoAccess: form.get("autoAccess") === "on",
@@ -259,6 +261,16 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
           <label>
             Număr mașină
             <input name="carPlate" defaultValue={editing.carPlate === "-" ? "" : editing.carPlate} placeholder="ex: TM01ABC" />
+          </label>
+
+          <label>
+            Cod Bluetooth
+            <input name="bluetoothCode" defaultValue={editing.bluetoothCode || ""} placeholder="ex: BT-A1B2C3" />
+          </label>
+
+          <label style={{ gridColumn: "span 2" }}>
+            URL Poză Angajat
+            <input name="photoUrl" defaultValue={editing.photoUrl || ""} placeholder="https://..." />
           </label>
 
           <label className="checkbox-field" style={{ display: "flex", gap: 8, alignItems: "center", gridColumn: "span 2" }}>
