@@ -3,7 +3,6 @@ import Sidebar from "../components/Sidebar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import AccessLogs from "../pages/AccessLogs.jsx";
-import Dashboard from "../pages/Dashboard.jsx";
 import Employees from "../pages/Employees.jsx";
 import Login from "../pages/Login.jsx";
 import Reports from "../pages/Reports.jsx";
@@ -45,7 +44,6 @@ function RoleRoute({ children, roles }) {
 }
 
 function defaultRoute(role) {
-  if (role === "admin") return "/dashboard";
   if (role === "division_manager") return "/reports";
   return "/access-logs";
 }
@@ -64,7 +62,6 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<RoleRoute roles={["admin", "operator"]}><Dashboard /></RoleRoute>} />
       <Route path="/employees" element={<RoleRoute roles={["admin", "hr", "division_manager"]}><Employees /></RoleRoute>} />
       <Route path="/access-logs" element={<RoleRoute roles={["admin", "hr", "operator", "viewer"]}><AccessLogs /></RoleRoute>} />
       <Route path="/reports" element={<RoleRoute roles={["admin", "division_manager"]}><Reports /></RoleRoute>} />
