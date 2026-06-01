@@ -1,6 +1,38 @@
 import { useEffect, useRef, useState } from "react";
 import AccessLogTable from "../components/AccessLogTable.jsx";
 import GateStatusCard from "../components/GateStatusCard.jsx";
+
+const PERSON_SVG_STR = (color) =>
+  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">` +
+  `<circle cx="12" cy="8" r="4" stroke="${color}" stroke-width="1.8"/>` +
+  `<path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>` +
+  `</svg>`;
+
+function EmployeeAvatar({ name, photoUrl, size, borderColor, fontSize = 16 }) {
+  const wrapRef = useRef(null);
+  const initial = (name || "?").trim().slice(0, 1).toUpperCase();
+  const circleStyle = {
+    width: size, height: size, borderRadius: "50%", flexShrink: 0,
+    background: borderColor, display: "flex", alignItems: "center",
+    justifyContent: "center", color: "white", fontWeight: 700, fontSize,
+  };
+  if (photoUrl) {
+    return (
+      <div ref={wrapRef} style={{ ...circleStyle, overflow: "hidden" }}>
+        <img
+          src={photoUrl}
+          alt={name}
+          style={{ width: size, height: size, objectFit: "cover", display: "block" }}
+          onError={() => {
+            if (wrapRef.current)
+              wrapRef.current.innerHTML = `<span style="color:white;font-weight:700;font-size:${fontSize}px">${initial}</span>`;
+          }}
+        />
+      </div>
+    );
+  }
+  return <div style={circleStyle}>{initial}</div>;
+}
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   getAccessLogs,
@@ -114,11 +146,9 @@ function AccessDetailsCard({ employee, authorized, message }) {
       {employee ? (
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {employee.photoUrl ? (
-            <img src={employee.photoUrl} alt={employee.name} style={{ width: "64px", height: "64px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${borderColor}` }} />
+            <EmployeeAvatar name={employee.name} photoUrl={employee.photoUrl} size={64} borderColor={borderColor} fontSize={24} />
           ) : (
-            <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: authorized ? "#0f8a5f" : "#c2413a", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "24px", fontWeight: "700", flexShrink: 0 }}>
-              {employee.name?.slice(0, 1) || "?"}
-            </div>
+            <EmployeeAvatar name={employee.name} photoUrl={undefined} size={64} borderColor={borderColor} fontSize={24} />
           )}
           <div>
             <p style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#18212f" }}>{employee.name}</p>
@@ -296,6 +326,7 @@ export default function Dashboard() {
             department: latest.department,
             carPlate: latest.carPlate,
             role: latest.method,
+            photoUrl: latest.photoUrl || "",
           },
           authorized: latest.status === "Valid",
         });
@@ -458,7 +489,7 @@ export default function Dashboard() {
           </div>
 
           <div className="profile-row">
-            <span className="avatar xl">{latestLog?.employeeName?.slice(0, 1) || "?"}</span>
+            <EmployeeAvatar name={latestLog?.employeeName} photoUrl={latestLog?.photoUrl} size={48} borderColor="#6b7280" fontSize={20} />
             <div>
               <p style={{ margin: 0, fontSize: "14px", color: "#6b7280", fontWeight: "500", display: "flex", alignItems: "center", gap: 5 }}>
                 {latestLog?.carPlate && latestLog.carPlate !== "-"

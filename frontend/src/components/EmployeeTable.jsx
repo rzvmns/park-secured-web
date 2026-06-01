@@ -1,3 +1,33 @@
+import React, { useRef } from "react";
+
+const AVATAR_STYLE = {
+  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+  background: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const PERSON_SVG =
+  `<svg width="18" height="18" viewBox="0 0 24 24" fill="none">` +
+  `<circle cx="12" cy="8" r="4" stroke="#9ca3af" stroke-width="1.8"/>` +
+  `<path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" stroke="#9ca3af" stroke-width="1.8" stroke-linecap="round"/>` +
+  `</svg>`;
+
+function EmployeeAvatar({ name, photoUrl }) {
+  const wrapRef = useRef(null);
+  if (photoUrl) {
+    return (
+      <div ref={wrapRef} style={AVATAR_STYLE}>
+        <img
+          src={photoUrl}
+          alt={name}
+          style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }}
+          onError={() => { if (wrapRef.current) wrapRef.current.innerHTML = PERSON_SVG; }}
+        />
+      </div>
+    );
+  }
+  return <div style={AVATAR_STYLE} dangerouslySetInnerHTML={{ __html: PERSON_SVG }} />;
+}
+
 export default function EmployeeTable({ employees = [], onEdit, onReport }) {
   // Verificăm dacă employees este valid, altfel afișăm un mesaj
   if (!employees || employees.length === 0) {
@@ -23,10 +53,7 @@ export default function EmployeeTable({ employees = [], onEdit, onReport }) {
             <tr key={employee.id || Math.random()}>
               <td>
                 <div className="employee-cell">
-                  {/* PROTECȚIE AICI: Verificăm dacă name există înainte de slice */}
-                  <span className="avatar soft">
-                    {employee.name ? employee.name.slice(0, 1) : "?"}
-                  </span>
+                  <EmployeeAvatar name={employee.name} photoUrl={employee.photoUrl} />
                   <div>
                     <strong>{employee.name || "Nume lipsă"}</strong>
                     <span>{employee.role || "Fără rol"}</span>
