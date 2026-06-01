@@ -262,6 +262,7 @@ export default function Dashboard() {
       setEmployees(newEmployees);
 
       const pendingLog = newLogs.find((log) => log.status === "Pending" && !resolvedEventIdsRef.current.has(log.id));
+      console.log("POLLING - pendingLog:", pendingLog?.id, "timeAlertRef:", timeAlertRef.current?.eventId, "resolvedIds:", [...resolvedEventIdsRef.current]);
       if (pendingLog) {
         if (pendingLog.id !== timeAlertRef.current?.eventId) {
           const emp = newEmployees.find((e) => e.employeeId === pendingLog.employeeId);
