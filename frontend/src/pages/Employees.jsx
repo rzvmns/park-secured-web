@@ -25,6 +25,11 @@ function generateTempPassword() {
   return pass;
 }
 
+function generateBluetoothCode() {
+  const hex = () => Math.floor(Math.random() * 0x10000).toString(16).toUpperCase().padStart(4, "0");
+  return `BT-${hex()}-${hex()}`;
+}
+
 function generateEmail(firstName, lastName, existingEmails = []) {
   const normalize = (s) =>
     (s || "")
@@ -57,6 +62,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
+  const [btCode] = useState(() => isNew ? generateBluetoothCode() : (editing?.bluetoothCode || ""));
   const isNew = !editing?.employeeId && !editing?.id;
 
   const parseSchedule = (s) => {
@@ -97,7 +103,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
       divisionId: divisionIdFinal,
       badgeCode: form.get("badgeCode"),
       photoUrl: form.get("photoUrl") || editing.photoUrl || null,
-      bluetoothCode: form.get("bluetoothCode") || editing.bluetoothCode || null,
+      bluetoothCode: isNew ? btCode : (form.get("bluetoothCode") || editing.bluetoothCode || null),
       schedule: `${schedStart} - ${schedEnd}`,
       carPlate: form.get("carPlate") || "-",
       autoAccess: form.get("autoAccess") === "on",
@@ -265,7 +271,16 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
 
           <label>
             Cod Bluetooth
-            <input name="bluetoothCode" defaultValue={editing.bluetoothCode || ""} placeholder="ex: BT-A1B2C3" />
+            {isNew ? (
+              <div style={{
+                background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 6,
+                padding: "8px 12px", fontFamily: "monospace", fontSize: 14, color: "#1e40af"
+              }}>
+                {btCode}
+              </div>
+            ) : (
+              <input name="bluetoothCode" defaultValue={editing.bluetoothCode || ""} placeholder="ex: BT-A1B2-C3D4" />
+            )}
           </label>
 
           <label style={{ gridColumn: "span 2" }}>
