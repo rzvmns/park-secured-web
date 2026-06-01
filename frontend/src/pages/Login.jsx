@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
   const { authError, isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("admin@parksecure.local");
   const [password, setPassword] = useState("admin123");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const accessDenied = searchParams.get("err") === "no-access";
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -62,6 +65,11 @@ export default function Login() {
             {isSubmitting ? "Se conecteaza..." : "Intra in aplicatie"}
           </button>
           {authError && <p className="inline-feedback danger-text">{authError}</p>}
+          {accessDenied && !authError && (
+            <p className="inline-feedback danger-text">
+              Acest cont nu are acces la interfața web. Folosiți aplicația desktop (portar) sau aplicația mobilă.
+            </p>
+          )}
         </form>
       </section>
       <section className="login-aside">

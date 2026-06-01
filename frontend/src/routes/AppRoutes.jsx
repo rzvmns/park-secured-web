@@ -21,28 +21,42 @@ function AppShell({ children }) {
   );
 }
 
+const BLOCKED_ROLES_WEB = ["operator", "viewer"];
+
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (BLOCKED_ROLES_WEB.includes(user?.role)) {
+    logout();
+    return <Navigate to="/login?err=no-access" replace />;
+  }
   return <AppShell>{children}</AppShell>;
 }
 
 function RoleRoute({ children, roles }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (BLOCKED_ROLES_WEB.includes(user?.role)) {
+    logout();
+    return <Navigate to="/login?err=no-access" replace />;
+  }
   if (!roles.includes(user?.role)) return <Navigate to={defaultRoute(user?.role)} replace />;
   return <AppShell>{children}</AppShell>;
 }
 
 function defaultRoute(role) {
-  if (role === "admin" || role === "operator") return "/dashboard";
+  if (role === "admin") return "/dashboard";
   if (role === "division_manager") return "/reports";
   return "/access-logs";
 }
 
 function RoleRedirect() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (BLOCKED_ROLES_WEB.includes(user?.role)) {
+    logout();
+    return <Navigate to="/login?err=no-access" replace />;
+  }
   return <Navigate to={defaultRoute(user?.role)} replace />;
 }
 
