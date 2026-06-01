@@ -1,5 +1,4 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud-r62j.onrender.com/api";
-const WEB_API_BASE_URL = import.meta.env.VITE_WEB_API_BASE_URL || "https://park-secured-backend.onrender.com/api";
 const TOKEN_KEY = "parksecured_token";
 const USER_KEY = "parksecured_user";
 
@@ -313,7 +312,7 @@ export async function getAccessLogs() {
 
 export async function getGateStatus() {
   try {
-    const response = await fetch(`${WEB_API_BASE_URL}/hardware/gate-status`);
+    const response = await fetch(`${API_BASE_URL}/hardware/gate-status`);
     const result = await response.json();
     return {
       state: result.state || "Inchisa",
@@ -464,26 +463,17 @@ export async function validateAccess({
 
 export async function getDeviceChangeRequests() {
   try {
-    const response = await fetch(`${WEB_API_BASE_URL}/device-change-requests`, {
-      headers: { Authorization: `Bearer ${getStoredToken()}` }
-    });
-    const result = await response.json();
-    return result.data || result;
+    return request("/device-change-requests");
   } catch {
     return [];
   }
 }
 
 export async function resolveDeviceChangeRequest(requestId, status) {
-  const response = await fetch(`${WEB_API_BASE_URL}/device-change-requests/${requestId}/resolve`, {
+  return request(`/device-change-requests/${requestId}/resolve`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getStoredToken()}`
-    },
     body: JSON.stringify({ status }),
   });
-  return response.json();
 }
 
 export async function getIndividualReport(employeeId) {
