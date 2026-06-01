@@ -3,8 +3,26 @@ const cors = require("cors");
 const { Pool } = require("pg");
 require("dotenv").config();
 
+
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+function requireHR(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'Neautentificat.' });
+  }
+  try {
+    const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
+    if (!['hr', 'admin'].includes(payload.role)) {
+      return res.status(403).json({ success: false, message: 'Acces interzis.' });
+    }
+    req.user = payload;
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Token invalid.' });
+  }
+}
 
 // --- MIDDLEWARES ---
 app.use(cors());
@@ -310,7 +328,13 @@ app.get("/api/hardware/gate-status", (req, res) => {
 
 
 // 2. ESP32 anunță serverul când starea fizică s-a schimbat (Senzori / Limitatori cursă / Bariere IR)
-app.post("/api/hardware/update-status", async (req, res) => {
+app.post("/api/hardware/update-status", (req, res, next) => {
+  const apiKey = req.headers['x-gate-api-key'];
+  if (!apiKey || apiKey !== process.env.GATE_API_KEY) {
+    return res.status(401).json({ success: false, message: 'Cheie API hardware lipsă sau invalidă.' });
+  }
+  next();
+}, async (req, res) => {
   try {
     const { hardwareState, hardwareLed, eventType, employeeId } = req.body;
 
@@ -337,7 +361,7 @@ app.post("/api/hardware/update-status", async (req, res) => {
 // =========================================================================
 // 🏢 ENDPOINT HR: ȘTERGERE DISPOZITIV ASOCIAT
 // =========================================================================
-app.delete("/api/admin/reset-device/:employeeId", async (req, res) => {
+app.delete("/api/admin/reset-device/:employeeId", requireHR, async (req, res) => {
   try {
     const { employeeId } = req.params;
     console.log(`[🏢 HR ACTION] Cerere de resetare dispozitiv pentru employee_id: ${employeeId}`);
@@ -361,7 +385,7 @@ app.delete("/api/admin/reset-device/:employeeId", async (req, res) => {
 // =========================================================================
 // CERERI SCHIMBARE DISPOZITIV - PENTRU HR
 // =========================================================================
-app.get("/api/device-change-requests", async (req, res) => {
+app.get("/api/device-change-requests", requireHR, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT r.request_id, r.status, r.requested_at,
@@ -378,7 +402,7 @@ app.get("/api/device-change-requests", async (req, res) => {
   }
 });
 
-app.patch("/api/device-change-requests/:id/resolve", async (req, res) => {
+app.patch("/api/device-change-requests/:id/resolve", requireHR, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
