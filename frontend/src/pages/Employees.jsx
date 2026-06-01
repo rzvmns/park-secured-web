@@ -62,8 +62,8 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
-  const [btCode] = useState(() => isNew ? generateBluetoothCode() : (editing?.bluetoothCode || ""));
   const isNew = !editing?.employeeId && !editing?.id;
+  const [btCode] = useState(() => isNew ? generateBluetoothCode() : (editing?.bluetoothCode || ""));
 
   const parseSchedule = (s) => {
     const m = (s || "").match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
