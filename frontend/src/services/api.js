@@ -342,12 +342,6 @@ export async function getReports() {
       request("/divisions").catch(() => []),
     ]);
 
-    const divisionReports = await Promise.all(
-      divisions.map((division) =>
-        request(`/reports/division/${division.divisionId}`).catch(() => null),
-      ),
-    );
-
     return {
       totals: {
         employees: globalReport.total_employees ?? employees.length,
@@ -355,13 +349,14 @@ export async function getReports() {
         denied: globalReport.denied_events ?? 0,
         manual: 0,
       },
-      byDepartment: divisionReports
-        .filter(Boolean)
-        .map((item) => ({
-          department: item.division_name,
-          entries: item.allowed_events,
-          denied: item.denied_events,
-        })),
+      byDepartment: divisions.map((division) => {
+        const divisionEmployees = employees.filter((employee) => Number(employee.divisionId) === Number(division.divisionId));
+        return {
+          department: division.name,
+          entries: divisionEmployees.length,
+          denied: 0,
+        };
+      }),
       monthly: [
         { label: "Ian", value: 0 },
         { label: "Feb", value: 0 },
