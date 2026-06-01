@@ -253,6 +253,7 @@ export default function Dashboard() {
   const timeAlertRef = useRef(null);
   const prevFirstLogIdRef = useRef(null);
   const gateTimersRef = useRef([]);
+  const resolvedEventIdsRef = useRef(new Set());
 
   const refreshDashboard = () => {
     getGateStatus().then((status) => { if (!gateAnimatingRef.current) setGateStatus(status); }).catch(console.error);
@@ -260,8 +261,7 @@ export default function Dashboard() {
       setLogs(newLogs);
       setEmployees(newEmployees);
 
-      const pendingLog = newLogs.find((log) => log.status === "Pending");
-      console.log("POLLING - pendingLog:", pendingLog?.id, "timeAlertRef:", timeAlertRef.current?.eventId, "resolvedIds:", [...resolvedEventIdsRef.current]);
+      const pendingLog = newLogs.find((log) => log.status === "Pending" && !resolvedEventIdsRef.current.has(log.id));
       if (pendingLog) {
         if (pendingLog.id !== timeAlertRef.current?.eventId) {
           const emp = newEmployees.find((e) => e.employeeId === pendingLog.employeeId);
@@ -276,9 +276,12 @@ export default function Dashboard() {
           setTimeAlert(alert);
         }
       } else {
-        if (timeAlertRef.current !== null) {
-          timeAlertRef.current = null;
-          setTimeAlert(null);
+        const currentId = timeAlertRef.current?.eventId;
+        if (currentId == null || !resolvedEventIdsRef.current.has(currentId)) {
+          if (timeAlertRef.current !== null) {
+            timeAlertRef.current = null;
+            setTimeAlert(null);
+          }
         }
       }
 
@@ -383,8 +386,8 @@ export default function Dashboard() {
     const alert = timeAlert;
     if (!alert?.eventId) { setTimeAlert(null); return; }
     try {
-      const result = await resolveAccessEvent(alert.eventId, "DENIED");
-      timeAlertRef.current = null;
+      resolvedEventIdsRef.current.add(alert.eventId);
+      await resolveAccessEvent(alert.eventId, "DENIED");
       setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
@@ -400,9 +403,9 @@ export default function Dashboard() {
     const alert = timeAlert;
     if (!alert?.eventId) { setTimeAlert(null); return; }
     try {
+      resolvedEventIdsRef.current.add(alert.eventId);
       await resolveAccessEvent(alert.eventId, "ALLOWED");
       simulateGate(true);
-      timeAlertRef.current = null;
       setTimeAlert(null);
       setLastAccess({
         employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
