@@ -21,8 +21,30 @@ export default function Reports() {
     );
   }
 
-  const handleExportCSV = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud-r62j.onrender.com/api"}/access-events/export.csv`;
+  const handleExportCSV = async () => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "https://park-secured-cloud-r62j.onrender.com/api";
+    const token = localStorage.getItem("parksecured_token");
+
+    try {
+      const response = await fetch(`${baseUrl}/access-events/export.csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        alert("Export eșuat. Verificați autentificarea.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "parksecure-access-events.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Eroare la exportul CSV.");
+    }
   };
 
   if (!reports) {
