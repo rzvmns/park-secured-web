@@ -61,6 +61,7 @@ function RoleRedirect() {
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<RoleRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/employees" element={<RoleRoute roles={["admin", "hr", "division_manager"]}><Employees /></RoleRoute>} />
       <Route path="/access-logs" element={<RoleRoute roles={["admin", "hr", "operator", "viewer"]}><AccessLogs /></RoleRoute>} />
