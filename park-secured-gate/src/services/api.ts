@@ -201,7 +201,7 @@ function toCloudEmployeePayload(employee: any) {
 }
 
 function mapCloudEvent(event: any, employees: any[] = []) {
-  const employee = (employees as any[]).find((item) => item.employeeId === event.employeeId);
+  const employee = (employees as any[]).find((item) => Number(item.employeeId) === Number(event.employeeId));
 
   return {
     id: event.eventId,

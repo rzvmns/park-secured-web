@@ -165,15 +165,16 @@ function EmployeeAvatar({ name, photoUrl, size, borderColor, fontSize = 16 }: {
   return <div style={circleStyle}>{initial}</div>;
 }
 
-function AccessDetailsCard({ employee, authorized, message, source }: {
+function AccessDetailsCard({ employee, authorized, pending, message, source }: {
   employee?: Employee | null;
   authorized?: boolean;
+  pending?: boolean;
   message?: string;
   source?: string;
 }) {
   if (!employee && !message) return null;
-  const borderColor = authorized ? "#0f8a5f" : "#c2413a";
-  const bgColor = authorized ? "#f0fdf4" : "#fff5f5";
+  const borderColor = pending ? "#d97706" : authorized ? "#0f8a5f" : "#c2413a";
+  const bgColor = pending ? "#fffbeb" : authorized ? "#f0fdf4" : "#fff5f5";
   return (
     <div style={{ border: `2px solid ${borderColor}`, borderRadius: "8px", padding: "16px", marginTop: "16px", background: bgColor, transition: "all 0.3s ease" }}>
       {employee ? (
@@ -193,9 +194,11 @@ function AccessDetailsCard({ employee, authorized, message, source }: {
               </p>
             )}
             <p style={{ margin: "6px 0 0", fontSize: "13px", fontWeight: "700", color: borderColor, display: "flex", alignItems: "center", gap: 6 }}>
-              {authorized
-                ? <><IconCheck size={15} color="#16a34a" /> ACCES PERMIS</>
-                : <><IconX size={15} color="#dc2626" /> ACCES REFUZAT</>
+              {pending
+                ? <><IconClock size={15} color="#d97706" /> AȘTEPTARE PORTAR</>
+                : authorized
+                  ? <><IconCheck size={15} color="#16a34a" /> ACCES PERMIS</>
+                  : <><IconX size={15} color="#dc2626" /> ACCES REFUZAT</>
               }
             </p>
           </div>
@@ -213,6 +216,7 @@ interface TimeAlert {
   department: string;
   carPlate?: string;
   schedule?: string | null;
+  photoUrl?: string;
 }
 
 function TimeAlertModal({ alert, onDismiss, onManualDeny }: {
@@ -249,6 +253,15 @@ function TimeAlertModal({ alert, onDismiss, onManualDeny }: {
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
           <IconWarning size={48} color="#c2413a" />
         </div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+          <EmployeeAvatar
+            name={alert.employeeName}
+            photoUrl={alert.photoUrl}
+            size={80}
+            borderColor="#c2413a"
+            fontSize={30}
+          />
+        </div>
         <h2 style={{ margin: "0 0 8px", color: "#c2413a", fontSize: "20px" }}>
           Acces în afara intervalului orar!
         </h2>
@@ -279,7 +292,7 @@ function TimeAlertModal({ alert, onDismiss, onManualDeny }: {
               fontSize: "14px", cursor: "pointer",
             }}
           >
-            <IconBlock size={15} color="#fff" /> Închide bariera
+            <IconBlock size={15} color="#fff" /> Refuză accesul
           </button>
           <button
             onClick={onDismiss}
@@ -430,7 +443,7 @@ export default function Dashboard() {
       }
 
       const { authorized, message, employee } = payload;
-
+      console.log(employee?.divisionId);
       const emp = employee
         ? {
             name: `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "Angajat",
@@ -485,13 +498,14 @@ export default function Dashboard() {
       const pendingLog = newLogs.find((log: any) => log.status === "Pending" && !resolvedEventIdsRef.current.has(log.id));
       if (pendingLog) {
         if (pendingLog.id !== timeAlertRef.current?.eventId) {
-          const emp = newEmployees.find((e: any) => e.employeeId === pendingLog.employeeId);
+          const emp = newEmployees.find((e: any) => Number(e.employeeId) === Number(pendingLog.employeeId));
           const alert: TimeAlert = {
             eventId: pendingLog.id,
             employeeName: pendingLog.employeeName,
             department: pendingLog.department,
             carPlate: pendingLog.carPlate,
             schedule: emp?.schedule || pendingLog.schedule || null,
+            photoUrl: pendingLog.photoUrl || emp?.photoUrl || '',
           };
           timeAlertRef.current = alert;
           newTimeAlert = alert;
@@ -507,29 +521,34 @@ export default function Dashboard() {
       }
 
       // Un singur setDash = un singur render
+      let newLastAccess: any = null;
+      let shouldUpdateLastAccess = false;
+      if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogIdRef.current) {
+        prevFirstLogIdRef.current = newLogs[0].id;
+        const latest = newLogs[0];
+        newLastAccess = {
+          employee: {
+            name: latest.employeeName,
+            department: latest.department,
+            carPlate: latest.carPlate,
+            role: latest.method,
+            photoUrl: latest.photoUrl || "",
+          },
+          authorized: latest.status === "Valid",
+          pending: latest.status === "Pending",
+        };
+        shouldUpdateLastAccess = true;
+      }
+
       setDash(prev => {
-        let newLastAccess = prev.lastAccess;
-        if (newLogs.length > 0 && newLogs[0].id !== prevFirstLogIdRef.current) {
-          prevFirstLogIdRef.current = newLogs[0].id;
-          const latest = newLogs[0];
-          if (prev.lastAccess?.source !== "Bluetooth") {
-            newLastAccess = {
-              employee: {
-                name: latest.employeeName,
-                department: latest.department,
-                carPlate: latest.carPlate,
-                role: latest.method,
-                photoUrl: latest.photoUrl || "",
-              },
-              authorized: latest.status === "Valid",
-            };
-          }
-        }
+        // Dacă lastAccess vine din Bluetooth și log-ul nou e același eveniment, păstrăm datele Bluetooth
+        const keepBluetooth = shouldUpdateLastAccess && prev.lastAccess?.source === "Bluetooth"
+          && prev.lastAccess?.bluetoothEventLogId === newLogs[0]?.id;
 
         return {
           ...prev,
           logs: newLogs,
-          lastAccess: newLastAccess,
+          lastAccess: keepBluetooth ? prev.lastAccess : shouldUpdateLastAccess ? newLastAccess : prev.lastAccess,
           ...(newTimeAlert !== "keep" ? { timeAlert: newTimeAlert } : {}),
         };
       });
@@ -554,16 +573,6 @@ export default function Dashboard() {
     );
   }
 
-  const handleValidateAccess = async (accessCode: string, direction = "IN") => {
-    try {
-      const result = await validateAccess({ accessCode, direction, method: "Portar" });
-      setLastAccess({ employee: result.employee, authorized: result.authorized });
-      refreshDashboard();
-    } catch {
-      setLastAccess({ employee: null, authorized: false, message: "Eroare de comunicație cu backend-ul." });
-    }
-  };
-
   const handleManualDeny = async () => {
     const alert = timeAlert;
     if (!alert?.eventId) { setTimeAlert(null); return; }
@@ -574,9 +583,8 @@ export default function Dashboard() {
       // astfel polling-ul nu mai recunoaște același eveniment PENDING ca "nou"
       setTimeAlert(null);
       setLastAccess({
-        employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
+        employee: { name: alert.employeeName, department: alert.department !== "N/A" ? alert.department : "", carPlate: alert.carPlate, photoUrl: alert.photoUrl },
         authorized: false,
-        message: "Acces interzis manual de portar.",
       });
     } catch (err) {
       console.error("resolve error:", err);
@@ -593,9 +601,8 @@ export default function Dashboard() {
       // astfel polling-ul nu mai recunoaște același eveniment PENDING ca "nou"
       setTimeAlert(null);
       setLastAccess({
-        employee: { name: alert.employeeName, department: alert.department, carPlate: alert.carPlate },
+        employee: { name: alert.employeeName, department: alert.department !== "N/A" ? alert.department : "", carPlate: alert.carPlate, photoUrl: alert.photoUrl },
         authorized: true,
-        message: "Acces permis excepțional de portar.",
       });
     } catch (err) {
       console.error("Eroare la aprobare:", err);
@@ -647,7 +654,7 @@ export default function Dashboard() {
           </div>
 
           <div className="profile-row">
-            <EmployeeAvatar name={latestLog?.employeeName} photoUrl={latestLog?.photoUrl} size={48} borderColor="#6b7280" fontSize={20} />
+            <EmployeeAvatar name={latestLog?.employeeName} photoUrl={latestLog?.photoUrl} size={80} borderColor="#6b7280" fontSize={32} />
             <div>
               <p style={{ margin: 0, fontSize: "14px", color: "#6b7280", fontWeight: "500", display: "flex", alignItems: "center", gap: 5 }}>
                 {latestLog?.carPlate && latestLog.carPlate !== "-"
@@ -661,25 +668,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
-            {["admin", "operator"].includes(user?.role ?? "") && (
-              <>
-                <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
-                  Permite Intrare
-                </button>
-                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" onClick={() => handleValidateAccess("1234", "OUT")}>
-                  Permite Ieșire
-                </button>
-                <button className="danger-button" type="button" onClick={() => handleValidateAccess("INVALID", "IN")}>
-                  Închide bariera
-                </button>
-              </>
-            )}
-          </div>
-
           <AccessDetailsCard
             employee={lastAccess?.employee}
             authorized={lastAccess?.authorized}
+            pending={lastAccess?.pending}
             message={lastAccess?.message}
             source={lastAccess?.source}
           />
