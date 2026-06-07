@@ -6,7 +6,7 @@ const ledClass = {
 };
 
 function GateAnimation({ state }: { state: string }) {
-  const isOpen = state === "Deschisa";
+  const isOpen = state === "Deschisa" || state === "Siguranta IR";
   const isOpening = state === "In curs de deschidere";
   const isClosing = state === "In curs de inchidere";
   const isMoving = isOpening || isClosing;

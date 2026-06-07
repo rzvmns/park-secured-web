@@ -412,14 +412,10 @@ export default function Dashboard() {
   const setLastAccess  = (fn: any) => setDash(prev => ({ ...prev, lastAccess:  typeof fn === "function" ? fn(prev.lastAccess)  : fn }));
   const setTimeAlert   = (fn: any) => setDash(prev => ({ ...prev, timeAlert:   typeof fn === "function" ? fn(prev.timeAlert)   : fn }));
 
-  const [gateAnimating, setGateAnimating] = useState(false);
-  const [gateClosing, setGateClosing] = useState(false);
   const [bluetoothNotif, setBluetoothNotif] = useState<BluetoothNotif | null>(null);
 
-  const gateAnimatingRef = useRef(false);
   const timeAlertRef = useRef<TimeAlert | null>(null);
   const prevFirstLogIdRef = useRef<number | null>(null);
-  const gateTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const resolvedEventIdsRef = useRef<Set<number>>(new Set());
 
   // ── Tauri: bluetooth-access-result listener (cu fallback pentru browser) ──
@@ -447,7 +443,6 @@ export default function Dashboard() {
 
       setBluetoothNotif({ authorized, employee: emp, message, source: "Bluetooth" });
       setLastAccess({ employee: emp, authorized, message: emp ? undefined : message, source: "Bluetooth" });
-      simulateGate(authorized);
       refreshDashboard();
     };
 
@@ -478,8 +473,7 @@ export default function Dashboard() {
   const refreshDashboard = () => {
     getGateStatus()
       .then((status: any) => {
-        if (!gateAnimatingRef.current)
-          setDash(prev => ({ ...prev, gateStatus: status }));
+        setDash(prev => ({ ...prev, gateStatus: status }));
       })
       .catch(console.error);
 
@@ -545,7 +539,7 @@ export default function Dashboard() {
   useEffect(() => {
     refreshDashboard();
     if (["admin", "operator"].includes(user?.role ?? "")) {
-      const interval = setInterval(refreshDashboard, 3000);
+      const interval = setInterval(refreshDashboard, 500);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -560,61 +554,10 @@ export default function Dashboard() {
     );
   }
 
-  const simulateGate = (authorized: boolean) => {
-    if (!authorized) return;
-    setGateAnimating(true);
-    gateAnimatingRef.current = true;
-    setGateStatus((prev: any) => ({
-      ...prev,
-      state: "In curs de deschidere",
-      activeLed: "Galben",
-      barrier: "Simulat",
-      esp32: "Simulat",
-      cloud: "OK",
-    }));
-    const t1 = setTimeout(() => {
-      setGateStatus((prev: any) => ({ ...prev, state: "Deschisa", activeLed: "Verde" }));
-      const t2 = setTimeout(() => {
-        setGateStatus((prev: any) => ({ ...prev, state: "In curs de inchidere", activeLed: "Galben" }));
-        const t3 = setTimeout(() => {
-          setGateStatus((prev: any) => ({ ...prev, state: "Inchisa", activeLed: "Rosu" }));
-          setGateAnimating(false);
-          gateAnimatingRef.current = false;
-          gateTimersRef.current = [];
-        }, 2000);
-        gateTimersRef.current.push(t3);
-      }, 20000);
-      gateTimersRef.current.push(t2);
-    }, 1500);
-    gateTimersRef.current = [t1];
-  };
-
-  const simulateClose = () => {
-    if (gateClosing) return;
-    gateTimersRef.current.forEach(clearTimeout);
-    gateTimersRef.current = [];
-    setGateClosing(true);
-    setGateStatus((prev: any) => ({
-      ...prev,
-      state: "In curs de inchidere",
-      activeLed: "Galben",
-      barrier: "Simulat",
-      esp32: "Simulat",
-      cloud: "OK",
-    }));
-    setTimeout(() => {
-      setGateStatus((prev: any) => ({ ...prev, state: "Inchisa", activeLed: "Rosu" }));
-      setGateClosing(false);
-      setGateAnimating(false);
-      gateAnimatingRef.current = false;
-    }, 3000);
-  };
-
   const handleValidateAccess = async (accessCode: string, direction = "IN") => {
     try {
       const result = await validateAccess({ accessCode, direction, method: "Portar" });
       setLastAccess({ employee: result.employee, authorized: result.authorized });
-      simulateGate(result.authorized);
       refreshDashboard();
     } catch {
       setLastAccess({ employee: null, authorized: false, message: "Eroare de comunicație cu backend-ul." });
@@ -646,7 +589,6 @@ export default function Dashboard() {
     try {
       resolvedEventIdsRef.current.add(alert.eventId);
       await resolveAccessEvent(alert.eventId, "ALLOWED");
-      simulateGate(true);
       // Nu resetăm timeAlertRef.current = null — îl lăsăm cu eventId-ul curent
       // astfel polling-ul nu mai recunoaște același eveniment PENDING ca "nou"
       setTimeAlert(null);
@@ -722,13 +664,13 @@ export default function Dashboard() {
           <div className="action-row" style={{ display: "flex", gap: "10px", marginTop: "20px", flexWrap: "wrap" }}>
             {["admin", "operator"].includes(user?.role ?? "") && (
               <>
-                <button className="primary-button" type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "IN"); simulateGate(true); }}>
+                <button className="primary-button" type="button" onClick={() => handleValidateAccess("1234", "IN")}>
                   Permite Intrare
                 </button>
-                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" disabled={gateAnimating} onClick={() => { handleValidateAccess("1234", "OUT"); simulateGate(true); }}>
+                <button className="primary-button" style={{ backgroundColor: "#d97706" }} type="button" onClick={() => handleValidateAccess("1234", "OUT")}>
                   Permite Ieșire
                 </button>
-                <button className="danger-button" type="button" disabled={gateClosing} onClick={() => { handleValidateAccess("INVALID", "IN"); simulateClose(); }}>
+                <button className="danger-button" type="button" onClick={() => handleValidateAccess("INVALID", "IN")}>
                   Închide bariera
                 </button>
               </>
