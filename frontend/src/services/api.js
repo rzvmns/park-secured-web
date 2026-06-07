@@ -171,7 +171,7 @@ function mapCloudEmployee(employee) {
     badgeCode: employee.badgeCode || "",
     bluetoothCode: employee.bluetoothCode || "",
     schedule: buildSchedule(employee.accessStartTime, employee.accessEndTime),
-    phone: "Neasociat",
+    phone: employee.hasSmartphone ? "Asociat" : "Neasociat",
     carPlate: employee.carNumber || "-",
     autoAccess: hasCar,
     status: employee.isActive ? "Activ" : "Inactiv",
