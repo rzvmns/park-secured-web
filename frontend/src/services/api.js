@@ -273,25 +273,18 @@ export async function getEmployees() {
 }
 
 export async function saveEmployee(employee) {
-  try {
-    const payload = toCloudEmployeePayload(employee);
-    const saved = employee.employeeId || employee.id
-      ? await request(`/employees/${employee.employeeId || employee.id}`, {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        })
-      : await request("/employees", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+  const payload = toCloudEmployeePayload(employee);
+  const saved = employee.employeeId || employee.id
+    ? await request(`/employees/${employee.employeeId || employee.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      })
+    : await request("/employees", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-    return mapCloudEmployee(saved);
-  } catch (error) {
-    await wait();
-    return employee.id
-      ? { ...employee }
-      : { ...employee, id: Date.now(), employeeId: Date.now(), status: "Activ" };
-  }
+  return mapCloudEmployee(saved);
 }
 
 export async function getAccessLogs() {
