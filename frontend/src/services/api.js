@@ -274,6 +274,7 @@ export async function getEmployees() {
 
 export async function saveEmployee(employee) {
   const payload = toCloudEmployeePayload(employee);
+  console.log('[saveEmployee payload]', payload);
   const saved = employee.employeeId || employee.id
     ? await request(`/employees/${employee.employeeId || employee.id}`, {
         method: "PUT",
