@@ -34,7 +34,7 @@ export default function Login() {
         <div className="brand large">
           <div className="brand-mark">PS</div>
           <div>
-            <strong>ParkSecured</strong>
+            <strong>ParkSecure</strong>
             <span>Administrare acces</span>
           </div>
         </div>

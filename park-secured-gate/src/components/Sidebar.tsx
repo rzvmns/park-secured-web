@@ -17,7 +17,7 @@ export default function Sidebar() {
       <div className="brand">
         <div className="brand-mark">PS</div>
         <div>
-          <strong>ParkSecured</strong>
+          <strong>ParkSecure</strong>
           <span>Access Control</span>
         </div>
       </div>
