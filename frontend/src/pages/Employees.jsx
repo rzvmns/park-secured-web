@@ -74,12 +74,6 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId, div
   const [schedEnd, setSchedEnd] = useState(() => parseSchedule(editing?.schedule)[1]);
 
   useEffect(() => {
-    if (divisions.length > 0 && editing.divisionId) {
-      setSelectedDivisionId(String(editing.divisionId));
-    }
-  }, [divisions, editing.divisionId]);
-
-  useEffect(() => {
     if (!isNew) return;
     request("/users").then((users) => {
       setExistingEmails((users || []).map((u) => u.email).filter(Boolean));
