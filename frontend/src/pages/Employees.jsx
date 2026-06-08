@@ -59,6 +59,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdPassword, setCreatedPassword] = useState(null);
+  const [divisions, setDivisions] = useState([]);
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
@@ -71,6 +72,12 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   };
   const [schedStart, setSchedStart] = useState(() => parseSchedule(editing?.schedule)[0]);
   const [schedEnd, setSchedEnd] = useState(() => parseSchedule(editing?.schedule)[1]);
+
+  useEffect(() => {
+    request("/divisions")
+      .then((data) => setDivisions(data || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isNew) return;
@@ -228,10 +235,17 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
             <input name="badgeCode" defaultValue={editing.badgeCode || ""} />
           </label>
 
-          {userRole === "admin" ? (
+          {userRole === "admin" || userRole === "hr" ? (
             <label>
-              ID divizie
-              <input name="divisionId" type="number" min="1" defaultValue={editing.divisionId || 1} required />
+              Divizie
+              <select name="divisionId" defaultValue={editing.divisionId || ""} required>
+                <option value="" disabled>Selectează divizia</option>
+                {divisions.map((d) => (
+                  <option key={d.divisionId} value={d.divisionId}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : (
             <input type="hidden" name="divisionId" value={userDivisionId} />

@@ -17,14 +17,6 @@ export default function Navbar() {
         <p className="eyebrow">Monitorizare acces</p>
         <h1>Panou operational poarta</h1>
       </div>
-      <nav style={{ display: "flex", gap: "8px" }}>
-        <NavLink to="/dashboard" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/access-logs" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
-          Log acces
-        </NavLink>
-      </nav>
       <div className="topbar-actions">
         <span className="date-pill">{formatter.format(new Date())}</span>
         <div className="user-chip">
