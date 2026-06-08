@@ -55,11 +55,10 @@ const AVAILABLE_ROLES = [
   { value: "hr", label: "HR" },
 ];
 
-function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
+function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId, divisions }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdPassword, setCreatedPassword] = useState(null);
-  const [divisions, setDivisions] = useState([]);
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
@@ -75,16 +74,10 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [schedEnd, setSchedEnd] = useState(() => parseSchedule(editing?.schedule)[1]);
 
   useEffect(() => {
-    request("/divisions")
-      .then((data) => setDivisions(data || []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-  if (divisions.length > 0 && editing.divisionId) {
-    setSelectedDivisionId(String(editing.divisionId));
-  }
-}, [divisions]);
+    if (divisions.length > 0 && editing.divisionId) {
+      setSelectedDivisionId(String(editing.divisionId));
+    }
+  }, [divisions, editing.divisionId]);
 
   useEffect(() => {
     if (!isNew) return;
@@ -509,6 +502,7 @@ const modalStyle = {
 export default function Employees() {
   const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
+  const [divisions, setDivisions] = useState([]);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
   const [reportEmployee, setReportEmployee] = useState(null);
@@ -519,6 +513,7 @@ export default function Employees() {
 
   useEffect(() => {
     incaseazaAngajati();
+    request("/divisions").then((data) => setDivisions(data || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -585,6 +580,7 @@ export default function Employees() {
           onSaved={handleSaved}
           userRole={user?.role}
           userDivisionId={user?.divisionId}
+          divisions={divisions}
         />
       )}
 
