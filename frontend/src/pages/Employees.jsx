@@ -238,7 +238,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
           {userRole === "admin" || userRole === "hr" ? (
             <label>
               Divizie
-              <select name="divisionId" defaultValue={editing.divisionId || ""} required>
+              <select name="divisionId" defaultValue={editing.divisionId || ""}   onChange={(e) => setSelectedDivisionId(e.target.value)} required>
                 <option value="" disabled>Selectează divizia</option>
                 {divisions.map((d) => (
                   <option key={d.divisionId} value={d.divisionId}>
