@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "park-secured-gate",
-        "width": 800,
-        "height": 600
+        "title": "ParkSecure",
+        "width": 1366,
+        "height": 768,
+        "icon": "icons/icon.png"
       }
     ],
     "security": {
