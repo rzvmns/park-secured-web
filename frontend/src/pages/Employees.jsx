@@ -62,6 +62,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [divisions, setDivisions] = useState([]);
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
+  const [selectedDivisionId, setSelectedDivisionId] = useState(editing.divisionId || "");
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
   const isNew = !editing?.employeeId && !editing?.id;
   const [btCode] = useState(() => isNew ? generateBluetoothCode() : (editing?.bluetoothCode || ""));
