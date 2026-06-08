@@ -63,6 +63,7 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   const [emailPreview, setEmailPreview] = useState("");
   const [existingEmails, setExistingEmails] = useState([]);
   const [selectedAccountRole, setSelectedAccountRole] = useState("operator");
+  const [selectedDivisionId, setSelectedDivisionId] = useState(String(editing.divisionId || ""));
   const isNew = !editing?.employeeId && !editing?.id;
   const [btCode] = useState(() => isNew ? generateBluetoothCode() : (editing?.bluetoothCode || ""));
 
@@ -238,10 +239,15 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
           {userRole === "admin" || userRole === "hr" ? (
             <label>
               Divizie
-              <select name="divisionId" defaultValue={editing.divisionId || ""} required>
+              <select
+                name="divisionId"
+                value={selectedDivisionId}
+                onChange={(e) => setSelectedDivisionId(e.target.value)}
+                required
+              >
                 <option value="" disabled>Selectează divizia</option>
                 {divisions.map((d) => (
-                  <option key={d.divisionId} value={d.divisionId}>
+                  <option key={d.divisionId} value={String(d.divisionId)}>
                     {d.name}
                   </option>
                 ))}
