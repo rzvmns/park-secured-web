@@ -81,6 +81,12 @@ function ModalAngajat({ editing, onClose, onSaved, userRole, userDivisionId }) {
   }, []);
 
   useEffect(() => {
+  if (divisions.length > 0 && editing.divisionId) {
+    setSelectedDivisionId(String(editing.divisionId));
+  }
+}, [divisions]);
+
+  useEffect(() => {
     if (!isNew) return;
     request("/users").then((users) => {
       setExistingEmails((users || []).map((u) => u.email).filter(Boolean));
