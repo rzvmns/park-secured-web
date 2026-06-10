@@ -330,11 +330,24 @@ export async function getGateStatus() {
 
 export async function getReports() {
   try {
-    const [employees, globalReport, divisions] = await Promise.all([
+    const currentUser = getStoredUser();
+
+    const [employees, globalReport, allDivisions] = await Promise.all([
       getEmployees(),
       request("/reports/global"),
       request("/divisions").catch(() => []),
     ]);
+
+    const divisions =
+      currentUser?.role === "division_manager" && currentUser?.divisionId
+        ? allDivisions.filter((d) => Number(d.divisionId) === Number(currentUser.divisionId))
+        : allDivisions;
+
+    const divisionReports = await Promise.all(
+      divisions.map((d) =>
+        request(`/reports/division/${d.divisionId}`).catch(() => null)
+      )
+    );
 
     return {
       totals: {
@@ -343,14 +356,13 @@ export async function getReports() {
         denied: globalReport.denied_events ?? 0,
         manual: 0,
       },
-      byDepartment: divisions.map((division) => {
-        const divisionEmployees = employees.filter((employee) => Number(employee.divisionId) === Number(division.divisionId));
-        return {
-          department: division.name,
-          entries: divisionEmployees.length,
-          denied: 0,
-        };
-      }),
+      byDepartment: divisionReports
+        .filter(Boolean)
+        .map((report) => ({
+          department: report.division_name,
+          entries: report.total_events ?? 0,
+          denied: report.denied_events ?? 0,
+        })),
       monthly: [
         { label: "Ian", value: 0 },
         { label: "Feb", value: 0 },
