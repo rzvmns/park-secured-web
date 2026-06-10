@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 const allNavItems = [
   { to: "/employees", label: "Angajati", icon: "A", roles: ["admin", "hr", "division_manager"] },
-  { to: "/access-logs", label: "Log acces", icon: "L", roles: ["admin", "hr", "division_manager", "viewer"] },
+  { to: "/access-logs", label: "Log acces", icon: "L", roles: ["admin", "hr", "viewer"] },
   { to: "/reports", label: "Rapoarte", icon: "R", roles: ["admin", "division_manager"] },
   { to: "/device-requests", label: "Cereri dispozitiv", icon: "C", roles: ["admin", "hr"] },
 ];
